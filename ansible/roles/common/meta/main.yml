@@ -1,0 +1,32 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard common role metadata
+#
+# Describes compatibility, ownership, and dependencies for the reusable
+# common role. This metadata is also compatible with Ansible Galaxy tooling.
+# -----------------------------------------------------------------------------
+
+galaxy_info:
+  role_name: common
+  namespace: opsboard
+  author: Khash90
+  description: Shared Linux baseline configuration for all OpsBoard nodes.
+  license: MIT-0
+  min_ansible_version: "2.16"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+  galaxy_tags:
+    - linux
+    - ubuntu
+    - kubernetes
+    - devops
+    - automation
+
+# This role currently has no dependencies on other Ansible roles.
+dependencies: []

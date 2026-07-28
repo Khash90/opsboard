@@ -1,0 +1,18 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard main Ansible playbook
+#
+# This playbook applies the shared Linux baseline to every managed node.
+# Additional roles will be added here later for Kubernetes control-plane,
+# worker-node, container runtime, security, and observability configuration.
+# -----------------------------------------------------------------------------
+
+- name: Apply the common Linux baseline
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - common

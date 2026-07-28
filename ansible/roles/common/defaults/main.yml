@@ -1,0 +1,21 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard common role defaults
+#
+# These values apply to every Linux node managed by the common role.
+# They are intentionally stored as variables so future environments can
+# override them without changing the role's task logic.
+# -----------------------------------------------------------------------------
+
+# Shared operating system packages required for administration,
+# troubleshooting, secure downloads, and Kubernetes preparation.
+common_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - software-properties-common
+  - unzip

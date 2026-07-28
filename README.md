@@ -36,7 +36,7 @@ The project is being implemented incrementally. Each completed phase will be doc
 - [x] Initial project documentation created
 - [x] Linux host preparation
 - [x] SSH key-based automation
-- [ ] Ansible inventory and roles
+- [x] Ansible inventory and roles
 - [ ] Terraform infrastructure configuration
 - [ ] Kubernetes cluster deployment
 - [ ] Voting application integration
