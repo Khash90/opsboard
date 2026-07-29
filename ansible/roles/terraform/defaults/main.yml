@@ -1,0 +1,21 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Terraform role defaults
+#
+# Defines configurable values used to install Terraform from HashiCorp's
+# official APT repository on the Ansible control node.
+# -----------------------------------------------------------------------------
+
+# Official HashiCorp APT repository and signing-key locations.
+terraform_repository_url: "https://apt.releases.hashicorp.com"
+terraform_gpg_key_url: "https://apt.releases.hashicorp.com/gpg"
+terraform_gpg_key_path: "/usr/share/keyrings/hashicorp-archive-keyring.gpg"
+
+
+# Install the latest Terraform version available from the configured repository.
+# A specific version can be supplied later through inventory variables when
+# reproducible version pinning is required.
+terraform_package_name: "terraform"
+terraform_package_state: "present"
