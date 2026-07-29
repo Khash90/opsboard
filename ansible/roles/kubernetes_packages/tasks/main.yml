@@ -1,0 +1,97 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes packages role tasks
+#
+# Configures the official Kubernetes APT repository, installs kubeadm and
+# kubelet on every Kubernetes node, installs kubectl on control-plane
+# administration nodes, and holds the packages to prevent accidental upgrades.
+# -----------------------------------------------------------------------------
+
+- name: Install packages required for the Kubernetes APT repository
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - python3-debian
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Create the Kubernetes APT keyring directory
+  ansible.builtin.file:
+    path: "{{ kubernetes_gpg_key_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Download the Kubernetes repository signing key
+  ansible.builtin.get_url:
+    url: "{{ kubernetes_gpg_key_url }}"
+    dest: /tmp/kubernetes-release.key
+    mode: "0644"
+  become: true
+
+- name: Convert the Kubernetes signing key to GPG keyring format
+  ansible.builtin.command:
+    cmd: >
+      gpg --dearmor
+      --yes
+      --output {{ kubernetes_gpg_key_path }}
+      /tmp/kubernetes-release.key
+  args:
+    creates: "{{ kubernetes_gpg_key_path }}"
+  become: true
+
+- name: Configure the official Kubernetes APT repository
+  ansible.builtin.deb822_repository:
+    name: kubernetes
+    types:
+      - deb
+    uris:
+      - "{{ kubernetes_repository_url }}"
+    suites:
+      - /
+    signed_by: "{{ kubernetes_gpg_key_path }}"
+    state: present
+    enabled: true
+  become: true
+
+- name: Build the Kubernetes package list for this node
+  ansible.builtin.set_fact:
+    kubernetes_packages_to_install: >-
+      {{
+        kubernetes_node_packages
+        +
+        (
+          kubernetes_control_plane_packages
+          if inventory_hostname in groups["control_plane"]
+          else []
+        )
+      }}
+
+- name: Install the required Kubernetes packages
+  ansible.builtin.apt:
+    name: "{{ kubernetes_packages_to_install }}"
+    state: "{{ kubernetes_package_state }}"
+    update_cache: true
+  become: true
+
+- name: Hold Kubernetes packages at their installed versions
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ kubernetes_packages_to_install }}"
+  when: kubernetes_hold_packages | bool
+  become: true
+
+- name: Ensure kubelet starts automatically after reboot
+  ansible.builtin.service:
+    name: kubelet
+    enabled: "{{ kubelet_service_enabled }}"
+  become: true

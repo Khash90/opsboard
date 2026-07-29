@@ -1,0 +1,40 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes packages role defaults
+#
+# Defines the Kubernetes repository, signing key, package names, and version
+# settings used on control-plane and worker nodes.
+# -----------------------------------------------------------------------------
+
+# Kubernetes publishes a separate APT repository for each minor release.
+# Change this value when intentionally upgrading the cluster.
+kubernetes_minor_version: "v1.36"
+
+# Official Kubernetes package repository locations.
+kubernetes_repository_url: >-
+  https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/
+
+kubernetes_gpg_key_url: >-
+  https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/Release.key
+
+kubernetes_gpg_key_directory: "/etc/apt/keyrings"
+kubernetes_gpg_key_path: "/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+
+# Kubernetes packages required on every cluster node.
+kubernetes_node_packages:
+  - kubeadm
+  - kubelet
+
+# kubectl is installed only on control-plane administration nodes.
+kubernetes_control_plane_packages:
+  - kubectl
+
+# Keep Kubernetes packages installed and prevent accidental unattended upgrades.
+kubernetes_package_state: "present"
+kubernetes_hold_packages: true
+
+# Kubelet should start automatically after reboot.
+# It may remain in a restarting state until kubeadm initializes or joins the node.
+kubelet_service_enabled: true
