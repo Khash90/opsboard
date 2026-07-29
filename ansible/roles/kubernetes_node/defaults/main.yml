@@ -1,0 +1,29 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes node role defaults
+#
+# Defines persistent kernel-module, sysctl, and swap settings required for
+# Kubernetes control-plane and worker nodes.
+# -----------------------------------------------------------------------------
+
+# Swap must remain disabled for the default kubelet configuration.
+kubernetes_disable_swap: true
+
+# Persistent kernel modules required by container networking.
+kubernetes_kernel_modules:
+  - overlay
+  - br_netfilter
+
+# File used to load required modules automatically after reboot.
+kubernetes_modules_config_file: "/etc/modules-load.d/kubernetes.conf"
+
+# Persistent networking parameters required by Kubernetes and the CNI plugin.
+kubernetes_sysctl_settings:
+  net.bridge.bridge-nf-call-iptables: 1
+  net.bridge.bridge-nf-call-ip6tables: 1
+  net.ipv4.ip_forward: 1
+
+# File used to preserve Kubernetes sysctl values across reboots.
+kubernetes_sysctl_config_file: "/etc/sysctl.d/99-kubernetes.conf"

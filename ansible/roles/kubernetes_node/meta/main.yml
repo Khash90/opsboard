@@ -1,0 +1,24 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+galaxy_info:
+  role_name: kubernetes_node
+  namespace: opsboard
+  author: Khash90
+  description: Prepare Ubuntu control-plane and worker nodes for Kubernetes.
+  license: MIT-0
+  min_ansible_version: "2.16"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+  galaxy_tags:
+    - kubernetes
+    - kubeadm
+    - networking
+    - sysctl
+    - ubuntu
+
+dependencies: []

@@ -1,0 +1,63 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes node role tasks
+#
+# Disables swap, loads required kernel modules, and configures persistent
+# networking parameters for Kubernetes control-plane and worker nodes.
+# -----------------------------------------------------------------------------
+
+- name: Disable swap immediately
+  ansible.builtin.command:
+    cmd: swapoff -a
+  when:
+    - kubernetes_disable_swap | bool
+    - ansible_facts["swaptotal_mb"] | int > 0
+  changed_when: true
+  become: true
+
+- name: Disable swap entries permanently in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\s*[^#\n]+\s+\S+\s+swap\s+.*)$'
+    replace: '# \1'
+    backup: true
+  when: kubernetes_disable_swap | bool
+  become: true
+
+- name: Configure persistent Kubernetes kernel modules
+  ansible.builtin.copy:
+    dest: "{{ kubernetes_modules_config_file }}"
+    content: |
+      {% for module in kubernetes_kernel_modules %}
+      {{ module }}
+      {% endfor %}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Load Kubernetes kernel modules
+
+- name: Load required Kubernetes kernel modules now
+  ansible.builtin.command:
+    cmd: "modprobe {{ item }}"
+  loop: "{{ kubernetes_kernel_modules }}"
+  changed_when: false
+  become: true
+
+- name: Configure persistent Kubernetes sysctl settings
+  ansible.builtin.copy:
+    dest: "{{ kubernetes_sysctl_config_file }}"
+    content: |
+      {% for setting, value in kubernetes_sysctl_settings.items() %}
+      {{ setting }} = {{ value }}
+      {% endfor %}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Apply Kubernetes sysctl settings
+
+- name: Apply notified Kubernetes node configuration
+  ansible.builtin.meta: flush_handlers
