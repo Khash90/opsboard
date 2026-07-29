@@ -1,0 +1,25 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard containerd role defaults
+#
+# Defines configurable package, service, and configuration values used to
+# install containerd on Kubernetes nodes.
+# -----------------------------------------------------------------------------
+
+# Ubuntu package and service names.
+containerd_package_name: "containerd"
+containerd_package_state: "present"
+containerd_service_name: "containerd"
+
+# Main containerd configuration locations.
+containerd_config_directory: "/etc/containerd"
+containerd_config_file: "/etc/containerd/config.toml"
+
+# Kubernetes and containerd should use the systemd cgroup driver together.
+containerd_systemd_cgroup: true
+
+# Ensure containerd starts automatically after a reboot.
+containerd_service_enabled: true
+containerd_service_state: "started"

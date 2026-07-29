@@ -1,0 +1,56 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard containerd role tasks
+#
+# Installs containerd, generates its default configuration, enables the systemd
+# cgroup driver required by Kubernetes, and ensures the service is running.
+# -----------------------------------------------------------------------------
+
+- name: Install containerd
+  ansible.builtin.apt:
+    name: "{{ containerd_package_name }}"
+    state: "{{ containerd_package_state }}"
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Create the containerd configuration directory
+  ansible.builtin.file:
+    path: "{{ containerd_config_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Generate the default containerd configuration
+  ansible.builtin.command:
+    cmd: containerd config default
+  register: containerd_default_config
+  changed_when: false
+
+- name: Write the containerd configuration
+  ansible.builtin.copy:
+    dest: "{{ containerd_config_file }}"
+    content: >-
+      {{
+        containerd_default_config.stdout
+        | regex_replace(
+            'SystemdCgroup = false',
+            'SystemdCgroup = ' ~ (containerd_systemd_cgroup | bool | ternary('true', 'false'))
+          )
+      }}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart containerd
+
+- name: Ensure containerd is enabled and running
+  ansible.builtin.service:
+    name: "{{ containerd_service_name }}"
+    enabled: "{{ containerd_service_enabled }}"
+    state: "{{ containerd_service_state }}"
+  become: true

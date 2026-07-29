@@ -1,0 +1,24 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+galaxy_info:
+  role_name: containerd
+  namespace: opsboard
+  author: Khash90
+  description: Install and configure containerd for OpsBoard Kubernetes nodes.
+  license: MIT-0
+  min_ansible_version: "2.16"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+  galaxy_tags:
+    - containerd
+    - containers
+    - kubernetes
+    - runtime
+    - ubuntu
+
+dependencies: []

@@ -1,0 +1,14 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard containerd role handlers
+#
+# Restarts containerd only when a task reports that its configuration changed.
+# -----------------------------------------------------------------------------
+
+- name: Restart containerd
+  ansible.builtin.service:
+    name: "{{ containerd_service_name }}"
+    state: restarted
+  become: true
