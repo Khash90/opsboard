@@ -1,0 +1,24 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+galaxy_info:
+  role_name: kubernetes_control_plane
+  namespace: opsboard
+  author: Khash90
+  description: Initialize and configure the OpsBoard Kubernetes control plane.
+  license: MIT-0
+  min_ansible_version: "2.16"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+  galaxy_tags:
+    - kubernetes
+    - kubeadm
+    - controlplane
+    - kubectl
+    - ubuntu
+
+dependencies: []

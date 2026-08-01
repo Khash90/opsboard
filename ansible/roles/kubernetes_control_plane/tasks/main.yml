@@ -1,0 +1,92 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes control-plane role tasks
+#
+# Initializes the first Kubernetes control-plane node and configures kubectl
+# access for the regular administration user.
+#
+# # Worker-node joining is handled in later steps.
+# -----------------------------------------------------------------------------
+
+- name: Check whether the Kubernetes control plane is already initialized
+  ansible.builtin.stat:
+    path: "{{ kubernetes_admin_conf }}"
+  register: kubernetes_control_plane_state
+
+- name: Initialize the Kubernetes control plane
+  ansible.builtin.command:
+    argv:
+      - kubeadm
+      - init
+      - "--apiserver-advertise-address={{ kubernetes_control_plane_advertise_address }}"
+      - "--apiserver-bind-port={{ kubernetes_api_server_port }}"
+      - "--pod-network-cidr={{ kubernetes_pod_network_cidr }}"
+      - "--service-cidr={{ kubernetes_service_cidr }}"
+      - "--cri-socket={{ kubernetes_cri_socket }}"
+  when: not kubernetes_control_plane_state.stat.exists
+  register: kubernetes_kubeadm_init
+  changed_when: true
+  become: true
+
+- name: Create the kubectl configuration directory for the administration user
+  ansible.builtin.file:
+    path: "{{ kubernetes_user_kube_directory }}"
+    state: directory
+    owner: "{{ kubernetes_admin_user }}"
+    group: "{{ kubernetes_admin_group }}"
+    mode: "0700"
+  become: true
+
+- name: Copy the Kubernetes administrator kubeconfig
+  ansible.builtin.copy:
+    src: "{{ kubernetes_admin_conf }}"
+    dest: "{{ kubernetes_user_kubeconfig }}"
+    remote_src: true
+    owner: "{{ kubernetes_admin_user }}"
+    group: "{{ kubernetes_admin_group }}"
+    mode: "0600"
+  become: true
+
+- name: Install the Flannel CNI plugin
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ kubernetes_flannel_manifest_url }}"
+      - "--kubeconfig={{ kubernetes_user_kubeconfig }}"
+  register: kubernetes_flannel_apply
+  changed_when: >-
+    'created' in kubernetes_flannel_apply.stdout
+    or 'configured' in kubernetes_flannel_apply.stdout
+
+- name: Wait for the Kubernetes API server to become available
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - --raw=/readyz
+      - "--kubeconfig={{ kubernetes_user_kubeconfig }}"
+  register: kubernetes_api_readiness
+  changed_when: false
+  retries: 20
+  delay: 6
+  until: kubernetes_api_readiness.rc == 0
+
+- name: Verify the Kubernetes control-plane node
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - nodes
+      - -o
+      - wide
+      - "--kubeconfig={{ kubernetes_user_kubeconfig }}"
+  register: kubernetes_control_plane_nodes
+  changed_when: false
+
+- name: Display the Kubernetes control-plane node
+  ansible.builtin.debug:
+    var: kubernetes_control_plane_nodes.stdout_lines

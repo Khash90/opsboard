@@ -1,0 +1,42 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes control-plane role defaults
+#
+# Defines the control-plane endpoint, pod and service networks, kubeconfig
+# ownership, container runtime socket, and Flannel installation settings.
+# -----------------------------------------------------------------------------
+
+# IP address used by the Kubernetes API server on the development control plane.
+kubernetes_control_plane_advertise_address: "10.0.2.5"
+
+# Kubernetes API server port.
+kubernetes_api_server_port: 6443
+
+# Flannel uses this network for pod IP addresses.
+# This range must not overlap with the VM network or Kubernetes service network.
+kubernetes_pod_network_cidr: "10.244.0.0/16"
+
+# Default Kubernetes virtual IP range used by ClusterIP services.
+kubernetes_service_cidr: "10.96.0.0/12"
+
+# Container runtime socket used by kubeadm and kubelet.
+kubernetes_cri_socket: "unix:///run/containerd/containerd.sock"
+
+# File created after kubeadm successfully initializes the control plane.
+kubernetes_admin_conf: "/etc/kubernetes/admin.conf"
+
+# Regular Linux user who will run kubectl without sudo.
+kubernetes_admin_user: "khash1"
+kubernetes_admin_group: "khash1"
+kubernetes_admin_home: "/home/khash1"
+kubernetes_user_kube_directory: "/home/khash1/.kube"
+kubernetes_user_kubeconfig: "/home/khash1/.kube/config"
+
+# Flannel CNI manifest.
+# We will pin this to a reviewed Flannel release before applying it.
+kubernetes_flannel_manifest_url: "https://github.com/flannel-io/flannel/releases/download/v0.28.8/kube-flannel.yml"
+
+# Kubernetes label that will later identify worker nodes in kubectl output.
+kubernetes_worker_role_label: "node-role.kubernetes.io/worker"

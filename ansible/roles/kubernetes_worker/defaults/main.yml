@@ -1,0 +1,25 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes worker role defaults
+#
+# Defines the files and runtime socket used to determine whether a worker node
+# has already joined the Kubernetes cluster.
+# -----------------------------------------------------------------------------
+
+# kubeadm creates this file after a worker successfully joins the cluster.
+# Its presence prevents the join command from running again.
+kubernetes_worker_kubelet_conf: "/etc/kubernetes/kubelet.conf"
+
+# containerd socket used when joining the worker node.
+kubernetes_worker_cri_socket: "unix:///run/containerd/containerd.sock"
+
+# Maximum time allowed for the kubeadm join operation.
+kubernetes_worker_join_timeout: 300
+
+# Kubernetes label displayed as the worker node role.
+kubernetes_worker_role_label: "node-role.kubernetes.io/worker"
+
+# Administrator kubeconfig used for kubectl commands delegated to the control plane.
+kubernetes_worker_admin_kubeconfig: "/etc/kubernetes/admin.conf"

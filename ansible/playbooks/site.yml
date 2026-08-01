@@ -5,8 +5,8 @@
 # OpsBoard main Ansible playbook
 #
 # Applies the shared Linux baseline, configures the container runtime, prepares
-# Kubernetes nodes, installs Kubernetes packages, and installs administration
-# tools only where they are required.
+# Kubernetes nodes, installs Kubernetes packages, initializes the control plane,
+# joins worker nodes, and installs administration tools only where required.
 # -----------------------------------------------------------------------------
 
 - name: Apply the common Linux baseline
@@ -40,6 +40,22 @@
 
   roles:
     - kubernetes_packages
+
+- name: Initialize the Kubernetes control plane
+  hosts: control_plane
+  become: true
+  gather_facts: true
+
+  roles:
+    - kubernetes_control_plane
+
+- name: Join Kubernetes worker nodes
+  hosts: workers
+  become: true
+  gather_facts: true
+
+  roles:
+    - kubernetes_worker
 
 - name: Configure the Ansible control node
   hosts: control_plane

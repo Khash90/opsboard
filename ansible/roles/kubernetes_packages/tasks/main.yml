@@ -95,3 +95,16 @@
     name: kubelet
     enabled: "{{ kubelet_service_enabled }}"
   become: true
+
+- name: Install kubeadm Bash completion
+  ansible.builtin.shell:
+    cmd: kubeadm completion bash > /etc/bash_completion.d/kubeadm
+    creates: /etc/bash_completion.d/kubeadm
+  become: true
+
+- name: Install kubectl Bash completion
+  ansible.builtin.shell:
+    cmd: kubectl completion bash > /etc/bash_completion.d/kubectl
+    creates: /etc/bash_completion.d/kubectl
+  when: inventory_hostname in groups["control_plane"]
+  become: true

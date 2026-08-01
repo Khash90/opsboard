@@ -1,0 +1,61 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes worker role tasks
+#
+# Joins worker nodes to the existing Kubernetes cluster. A fresh bootstrap
+# token and complete join command are generated on the control-plane node.
+# -----------------------------------------------------------------------------
+
+- name: Check whether the worker has already joined the cluster
+  ansible.builtin.stat:
+    path: "{{ kubernetes_worker_kubelet_conf }}"
+  register: kubernetes_worker_join_state
+
+- name: Generate a fresh Kubernetes worker join command
+  ansible.builtin.command:
+    argv:
+      - kubeadm
+      - token
+      - create
+      - --print-join-command
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  run_once: true
+  register: kubernetes_worker_join_command
+  changed_when: false
+  when: >-
+    groups["workers"]
+    | map("extract", hostvars, "kubernetes_worker_join_state")
+    | selectattr("stat.exists", "equalto", false)
+    | list
+    | length > 0
+
+- name: Join the worker to the Kubernetes cluster
+  ansible.builtin.command:
+    cmd: >-
+      {{ kubernetes_worker_join_command.stdout }}
+      --cri-socket {{ kubernetes_worker_cri_socket }}
+  when: not kubernetes_worker_join_state.stat.exists
+  no_log: true
+  register: kubernetes_worker_join_result
+  changed_when: true
+  async: "{{ kubernetes_worker_join_timeout }}"
+  poll: 5
+  become: true
+
+- name: Label the Kubernetes worker node
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - label
+      - node
+      - "{{ inventory_hostname }}"
+      - "{{ kubernetes_worker_role_label }}="
+      - --overwrite
+      - "--kubeconfig={{ kubernetes_worker_admin_kubeconfig }}"
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: kubernetes_worker_label_result
+  changed_when: >-
+    'labeled' in kubernetes_worker_label_result.stdout
+    and 'not labeled' not in kubernetes_worker_label_result.stdout

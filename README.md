@@ -38,7 +38,7 @@ The project is being implemented incrementally. Each completed phase will be doc
 - [x] SSH key-based automation
 - [x] Ansible inventory and roles
 - [ ] Terraform infrastructure configuration
-- [ ] Kubernetes cluster deployment
+- [x] Kubernetes cluster deployment
 - [ ] Voting application integration
 - [ ] Docker image build process
 - [ ] Helm chart configuration
