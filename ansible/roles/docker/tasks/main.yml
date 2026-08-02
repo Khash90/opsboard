@@ -1,0 +1,73 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Docker role tasks
+#
+# Installs Docker build and local testing tools without replacing the existing
+# Ubuntu containerd package used by Kubernetes.
+# -----------------------------------------------------------------------------
+
+- name: Validate the Docker user configuration
+  ansible.builtin.assert:
+    that:
+      - docker_user | length > 0
+    fail_msg: >-
+      docker_user must be defined in the environment inventory before the
+      Docker role can configure non-root access.
+
+- name: Install Docker build and testing packages
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Enable and start the Docker service
+  ansible.builtin.service:
+    name: "{{ docker_service_name }}"
+    enabled: "{{ docker_service_enabled }}"
+    state: "{{ docker_service_state }}"
+  become: true
+
+- name: Add the build user to the Docker group
+  ansible.builtin.user:
+    name: "{{ docker_user }}"
+    groups:
+      - docker
+    append: true
+  become: true
+
+- name: Verify Docker Engine installation
+  ansible.builtin.command:
+    argv:
+      - docker
+      - --version
+  register: docker_version_output
+  changed_when: false
+
+- name: Verify Docker Buildx installation
+  ansible.builtin.command:
+    argv:
+      - docker
+      - buildx
+      - version
+  register: docker_buildx_version_output
+  changed_when: false
+
+- name: Verify Docker Compose installation
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - version
+  register: docker_compose_version_output
+  changed_when: false
+
+- name: Display installed Docker tool versions
+  ansible.builtin.debug:
+    msg:
+      - "{{ docker_version_output.stdout }}"
+      - "{{ docker_buildx_version_output.stdout }}"
+      - "{{ docker_compose_version_output.stdout }}"

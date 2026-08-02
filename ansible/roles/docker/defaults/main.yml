@@ -1,0 +1,27 @@
+---
+# SPDX-License-Identifier: MIT-0
+
+# -----------------------------------------------------------------------------
+# OpsBoard Docker role defaults
+#
+# Installs Docker build and local testing tools on the designated build host.
+# Ubuntu packages are used so the existing Kubernetes containerd package is
+# preserved instead of being replaced by Docker's containerd.io package.
+# -----------------------------------------------------------------------------
+
+# Docker packages provided by Ubuntu 24.04.
+docker_packages:
+  - docker.io
+  - docker-compose-v2
+  - docker-buildx
+
+# Linux user allowed to run Docker commands without sudo.
+#
+# This is intentionally empty because usernames are environment-specific.
+# The development inventory will set this value to khash1.
+docker_user: ""
+
+# Docker service configuration.
+docker_service_name: "docker"
+docker_service_enabled: true
+docker_service_state: "started"

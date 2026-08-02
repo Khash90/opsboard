@@ -6,7 +6,7 @@
 #
 # Applies the shared Linux baseline, configures the container runtime, prepares
 # Kubernetes nodes, installs Kubernetes packages, initializes the control plane,
-# joins worker nodes, and installs administration tools only where required.
+# joins worker nodes, and configures build and administration tools.
 # -----------------------------------------------------------------------------
 
 - name: Apply the common Linux baseline
@@ -56,6 +56,14 @@
 
   roles:
     - kubernetes_worker
+
+- name: Configure Docker build tools
+  hosts: control_plane
+  become: true
+  gather_facts: true
+
+  roles:
+    - docker
 
 - name: Configure the Ansible control node
   hosts: control_plane
