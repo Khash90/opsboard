@@ -1,32 +1,57 @@
-# base defines a base stage that uses the official python runtime base image
-FROM python:3.11-slim AS base
+# Use a small official Python runtime image.
+FROM python:3.11-slim
 
-# Add curl for healthcheck
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+# Prevent Python from writing .pyc files and send logs directly to stdout/stderr.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080 \
+    GUNICORN_WORKERS=2
 
-# Set the application directory
+# Install curl for the container health check, then remove APT metadata.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a dedicated non-root user for the application.
+RUN groupadd --system --gid 10001 appgroup \
+    && useradd \
+        --system \
+        --uid 10001 \
+        --gid appgroup \
+        --create-home \
+        --home-dir /home/appuser \
+        appuser
+
 WORKDIR /usr/local/app
 
-# Install our requirements.txt
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy and install dependencies separately for efficient Docker layer caching.
+COPY requirements.txt .
 
-# dev defines a stage for development, where it'll watch for filesystem changes
-FROM base AS dev
-RUN pip install watchdog
-ENV FLASK_ENV=development
-CMD ["python", "app.py"]
+RUN pip install \
+        --no-cache-dir \
+        --disable-pip-version-check \
+        -r requirements.txt
 
-# final defines the stage that will bundle the application for production
-FROM base AS final
+# Copy the application source and assign ownership to the non-root user.
+COPY --chown=appuser:appgroup . .
 
-# Copy our code from the current folder to the working directory inside the container
-COPY . .
+# The application uses an unprivileged port because it runs as non-root.
+EXPOSE 8080
 
-# Make port 80 available for links and/or publish
-EXPOSE 80
+# Check that the web process can answer HTTP requests.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail --silent --show-error "http://127.0.0.1:${PORT}/" || exit 1
 
-# Define our command to be run when launching the container
-CMD ["gunicorn", "app:app", "-b", "0.0.0.0:80", "--log-file", "-", "--access-logfile", "-", "--workers", "4", "--keep-alive", "0"]
+USER appuser
+
+# Use exec so Gunicorn receives container stop signals correctly.
+# PORT and GUNICORN_WORKERS remain configurable at runtime.
+CMD ["sh", "-c", "exec gunicorn app:app \
+    --bind 0.0.0.0:${PORT} \
+    --workers ${GUNICORN_WORKERS} \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output \
+    --timeout 30 \
+    --graceful-timeout 30 \
+    --keep-alive 2"]
