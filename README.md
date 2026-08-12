@@ -39,8 +39,8 @@ The project is being implemented incrementally. Each completed phase will be doc
 - [x] Ansible inventory and roles
 - [ ] Terraform infrastructure configuration
 - [x] Kubernetes cluster deployment
-- [ ] Voting application integration
-- [ ] Docker image build process
+- [x] Voting application integration
+- [x] Docker image build process
 - [ ] Helm chart configuration
 - [ ] GitLab CI/CD pipelines
 - [ ] Argo CD GitOps deployment
