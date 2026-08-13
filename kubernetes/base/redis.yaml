@@ -1,0 +1,82 @@
+# Redis provides the temporary vote queue between the vote and worker services.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: opsboard
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: redis
+
+  template:
+    metadata:
+      labels:
+        app: redis
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+
+          ports:
+            - name: redis
+              containerPort: 6379
+
+          # Verify that Redis is ready to accept traffic.
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 3
+            periodSeconds: 5
+
+          # Restart the container if Redis becomes unresponsive.
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          # Prevent a single Pod from consuming excessive node resources.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+---
+# Stable internal DNS endpoint used by other Pods as "redis".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: opsboard
+spec:
+  type: ClusterIP
+
+  selector:
+    app: redis
+
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
