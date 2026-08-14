@@ -41,7 +41,7 @@ The project is being implemented incrementally. Each completed phase will be doc
 - [x] Kubernetes cluster deployment
 - [x] Voting application integration
 - [x] Docker image build process
-- [ ] Kubernetes application deployment
+- [x] Kubernetes application deployment
 - [ ] Helm chart configuration
 - [ ] GitLab CI/CD pipelines
 - [ ] Argo CD GitOps deployment

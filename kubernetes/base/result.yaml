@@ -1,0 +1,99 @@
+# Result reads vote totals from PostgreSQL and shows them to users.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: result
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: result
+
+  template:
+    metadata:
+      labels:
+        app: result
+        app.kubernetes.io/name: result
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: result
+          image: registry.gitlab.com/khash90/opsboard/result:latest
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            - name: POSTGRES_HOST
+              value: db
+
+            - name: POSTGRES_USER
+              value: postgres
+
+            - name: POSTGRES_DB
+              value: postgres
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+---
+# Exposes the result frontend through a NodePort for the lab environment.
+apiVersion: v1
+kind: Service
+metadata:
+  name: result
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: result
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  type: NodePort
+
+  selector:
+    app: result
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30081

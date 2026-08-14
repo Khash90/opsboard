@@ -1,0 +1,122 @@
+# PostgreSQL stores the processed OpsBoard voting data.
+# A StatefulSet is used because the database requires persistent storage.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  serviceName: db
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+
+          ports:
+            - name: postgres
+              containerPort: 5432
+
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+
+            - name: POSTGRES_DB
+              value: postgres
+
+            # Password is read from the Kubernetes Secret.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+            # Keep PostgreSQL data inside the persistent volume.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+  # Kubernetes automatically creates a PVC for this StatefulSet.
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+
+      spec:
+        accessModes:
+          - ReadWriteOnce
+
+        storageClassName: local-path
+
+        resources:
+          requests:
+            storage: 2Gi
+
+---
+# Internal Kubernetes endpoint.
+#
+# Worker and result Pods will connect using:
+# POSTGRES_HOST=db
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: postgres
+
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

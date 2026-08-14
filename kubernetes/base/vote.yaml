@@ -1,0 +1,95 @@
+# Vote is the frontend service where users submit their choice.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: vote
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: vote
+
+  template:
+    metadata:
+      labels:
+        app: vote
+        app.kubernetes.io/name: vote
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: vote
+          image: registry.gitlab.com/khash90/opsboard/vote:latest
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            - name: REDIS_HOST
+              value: redis
+
+            - name: REDIS_PORT
+              value: "6379"
+
+            # Temporary browser-facing result URL for our lab.
+            # Later, Ingress will replace this.
+            - name: RESULT_URL
+              value: http://127.0.0.1:8082
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+---
+# Exposes the vote frontend through a NodePort for the lab environment.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vote
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: vote
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  type: NodePort
+
+  selector:
+    app: vote
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30080

@@ -1,0 +1,62 @@
+# Worker consumes votes from Redis and writes them to PostgreSQL.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: opsboard
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: worker
+
+  template:
+    metadata:
+      labels:
+        app: worker
+        app.kubernetes.io/name: worker
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      # Used to pull the private-ready image from GitLab Container Registry.
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: worker
+          image: registry.gitlab.com/khash90/opsboard/worker:latest
+
+          env:
+            - name: REDIS_HOST
+              value: redis
+
+            - name: POSTGRES_HOST
+              value: db
+
+            - name: POSTGRES_USER
+              value: postgres
+
+            - name: POSTGRES_DB
+              value: postgres
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
