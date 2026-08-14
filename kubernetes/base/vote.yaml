@@ -29,6 +29,7 @@ spec:
       containers:
         - name: vote
           image: registry.gitlab.com/khash90/opsboard/vote:latest
+          imagePullPolicy: IfNotPresent
 
           ports:
             - name: http

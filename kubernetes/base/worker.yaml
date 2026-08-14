@@ -30,6 +30,7 @@ spec:
       containers:
         - name: worker
           image: registry.gitlab.com/khash90/opsboard/worker:latest
+          imagePullPolicy: IfNotPresent
 
           env:
             - name: REDIS_HOST
