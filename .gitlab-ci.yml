@@ -1,0 +1,9 @@
+stages:
+  - test
+
+first_pipeline:
+  stage: test
+  script:
+    - echo "Hello from OpsBoard GitLab CI"
+    - hostname
+    - whoami
