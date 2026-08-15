@@ -1,0 +1,35 @@
+---
+# Install Helm from the official Debian/Ubuntu repository.
+
+- name: Install Helm repository prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gpg
+      - apt-transport-https
+      - python3-debian
+    state: present
+    update_cache: true
+  become: true
+
+- name: Configure Helm APT repository
+  ansible.builtin.deb822_repository:
+    name: helm
+    types:
+      - deb
+    uris:
+      - https://packages.buildkite.com/helm-linux/helm-debian/any/
+    suites:
+      - any
+    components:
+      - main
+    signed_by: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
+    state: present
+  become: true
+
+- name: Install Helm
+  ansible.builtin.apt:
+    name: helm
+    state: present
+    update_cache: true
+  become: true

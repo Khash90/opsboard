@@ -42,7 +42,7 @@ The project is being implemented incrementally. Each completed phase will be doc
 - [x] Voting application integration
 - [x] Docker image build process
 - [x] Kubernetes application deployment
-- [ ] Helm chart configuration
+- [x] Helm chart configuration
 - [ ] GitLab CI/CD pipelines
 - [ ] Argo CD GitOps deployment
 - [ ] Prometheus metrics collection

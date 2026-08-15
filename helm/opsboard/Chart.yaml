@@ -1,0 +1,25 @@
+apiVersion: v2
+
+name: opsboard
+
+description: Helm chart for deploying the OpsBoard voting application on Kubernetes.
+
+type: application
+
+version: 0.1.0
+
+appVersion: "1.0.0"
+
+maintainers:
+  - name: Khashayar Mirbabaie Ghane
+
+keywords:
+  - kubernetes
+  - helm
+  - devops
+  - voting-app
+  - redis
+  - postgresql
+
+annotations:
+  category: DevOps

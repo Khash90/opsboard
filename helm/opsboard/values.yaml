@@ -1,0 +1,170 @@
+# Default values for the OpsBoard Helm chart.
+
+redis:
+  enabled: true
+
+  image:
+    repository: redis
+    tag: 7-alpine
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+postgres:
+  enabled: true
+
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  database:
+    user: postgres
+    name: postgres
+
+  service:
+    type: ClusterIP
+    port: 5432
+
+  persistence:
+    enabled: true
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+    size: 2Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+worker:
+  enabled: true
+
+  image:
+    repository: registry.gitlab.com/khash90/opsboard/worker
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  redis:
+    host: redis
+
+  postgres:
+    host: db
+    user: postgres
+    database: postgres
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+vote:
+  enabled: true
+
+  image:
+    repository: registry.gitlab.com/khash90/opsboard/vote
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  redis:
+    host: redis
+    port: 6379
+
+  resultUrl: http://127.0.0.1:8082
+
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30080
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+result:
+  enabled: true
+
+  image:
+    repository: registry.gitlab.com/khash90/opsboard/result
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  postgres:
+    host: db
+    user: postgres
+    database: postgres
+
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30081
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10

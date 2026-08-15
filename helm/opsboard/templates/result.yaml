@@ -1,0 +1,95 @@
+{{- if .Values.result.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: result
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  replicas: {{ .Values.result.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: result
+
+  template:
+    metadata:
+      labels:
+        app: result
+        app.kubernetes.io/name: result
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: result
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.tag }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.result.service.port }}
+
+          env:
+            - name: POSTGRES_HOST
+              value: {{ .Values.result.postgres.host | quote }}
+
+            - name: POSTGRES_USER
+              value: {{ .Values.result.postgres.user | quote }}
+
+            - name: POSTGRES_DB
+              value: {{ .Values.result.postgres.database | quote }}
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.result.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.result.readinessProbe.periodSeconds }}
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.result.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.result.livenessProbe.periodSeconds }}
+
+          resources:
+            {{- toYaml .Values.result.resources | nindent 12 }}
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: result
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: result
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  type: {{ .Values.result.service.type }}
+
+  selector:
+    app: result
+
+  ports:
+    - name: http
+      port: {{ .Values.result.service.port }}
+      targetPort: http
+      nodePort: {{ .Values.result.service.nodePort }}
+{{- end }}

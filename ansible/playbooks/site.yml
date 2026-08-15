@@ -72,3 +72,4 @@
 
   roles:
     - terraform
+    - helm

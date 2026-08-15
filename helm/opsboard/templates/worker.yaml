@@ -1,0 +1,58 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/part-of: opsboard
+
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: worker
+
+  template:
+    metadata:
+      labels:
+        app: worker
+        app.kubernetes.io/name: worker
+        app.kubernetes.io/part-of: opsboard
+
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: worker
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+
+          env:
+            - name: REDIS_HOST
+              value: {{ .Values.worker.redis.host | quote }}
+
+            - name: POSTGRES_HOST
+              value: {{ .Values.worker.postgres.host | quote }}
+
+            - name: POSTGRES_USER
+              value: {{ .Values.worker.postgres.user | quote }}
+
+            - name: POSTGRES_DB
+              value: {{ .Values.worker.postgres.database | quote }}
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+
+          securityContext:
+            allowPrivilegeEscalation: false
+{{- end }}
