@@ -52,3 +52,19 @@ build_worker:
     - 'docker build -t opsboard-worker:ci-demo app/worker'
     - 'docker image inspect opsboard-worker:ci-demo >/dev/null'
     - 'echo "Worker image built successfully"'
+
+# ---------------------------------------------------------
+# Registry Authentication Check
+# ---------------------------------------------------------
+registry_auth_check:
+  stage: validate
+  when: manual
+  allow_failure: true
+  script:
+    - 'echo "Checking GitLab Container Registry authentication"'
+    - 'test -n "$CI_REGISTRY"'
+    - 'test -n "$CI_REGISTRY_USER"'
+    - 'test -n "$CI_REGISTRY_PASSWORD"'
+    - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+    - 'docker logout "$CI_REGISTRY"'
+    - 'echo "Registry authentication verified successfully"'
