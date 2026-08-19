@@ -28,7 +28,7 @@ spec:
 
       containers:
         - name: result
-          image: registry.gitlab.com/khash90/opsboard/result:latest
+          image: 10.0.2.5:5050/opsboard/opsboard/result:latest
           imagePullPolicy: IfNotPresent
 
           ports:

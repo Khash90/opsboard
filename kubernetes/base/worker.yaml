@@ -29,7 +29,7 @@ spec:
 
       containers:
         - name: worker
-          image: registry.gitlab.com/khash90/opsboard/worker:latest
+          image: 10.0.2.5:5050/opsboard/opsboard/worker:latest
           imagePullPolicy: IfNotPresent
 
           env:

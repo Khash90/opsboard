@@ -74,7 +74,7 @@ worker:
   enabled: true
 
   image:
-    repository: registry.gitlab.com/khash90/opsboard/worker
+    repository: 10.0.2.5:5050/opsboard/opsboard/worker
     tag: latest
     pullPolicy: IfNotPresent
 
@@ -100,7 +100,7 @@ vote:
   enabled: true
 
   image:
-    repository: registry.gitlab.com/khash90/opsboard/vote
+    repository: 10.0.2.5:5050/opsboard/opsboard/vote
     tag: latest
     pullPolicy: IfNotPresent
 
@@ -137,7 +137,7 @@ result:
   enabled: true
 
   image:
-    repository: registry.gitlab.com/khash90/opsboard/result
+    repository: 10.0.2.5:5050/opsboard/opsboard/result
     tag: latest
     pullPolicy: IfNotPresent
 
