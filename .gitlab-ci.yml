@@ -1,9 +1,54 @@
 stages:
-  - test
+  - validate
+  - build
 
-first_pipeline:
-  stage: test
+# ---------------------------------------------------------
+# Validate
+# ---------------------------------------------------------
+validate_pipeline:
+  stage: validate
   script:
-    - echo "Hello from OpsBoard GitLab CI"
-    - hostname
-    - whoami
+    - echo "Validating OpsBoard CI environment"
+    - echo "Runner host: $(hostname)"
+    - echo "Runner user: $(whoami)"
+    - docker version
+    - echo "Validation completed successfully"
+
+# ---------------------------------------------------------
+# Build Vote
+# ---------------------------------------------------------
+build_vote:
+  stage: build
+  when: manual
+  allow_failure: true
+  script:
+    - echo "Building OpsBoard vote image"
+    - docker build -t opsboard-vote:ci-demo app/vote
+    - docker image inspect opsboard-vote:ci-demo >/dev/null
+    - echo "Vote image built successfully"
+
+# ---------------------------------------------------------
+# Build Result
+# ---------------------------------------------------------
+build_result:
+  stage: build
+  when: manual
+  allow_failure: true
+  script:
+    - echo "Building OpsBoard result image"
+    - docker build -t opsboard-result:ci-demo app/result
+    - docker image inspect opsboard-result:ci-demo >/dev/null
+    - echo "Result image built successfully"
+
+# ---------------------------------------------------------
+# Build Worker
+# ---------------------------------------------------------
+build_worker:
+  stage: build
+  when: manual
+  allow_failure: true
+  script:
+    - echo "Building OpsBoard worker image"
+    - docker build -t opsboard-worker:ci-demo app/worker
+    - docker image inspect opsboard-worker:ci-demo >/dev/null
+    - echo "Worker image built successfully"
