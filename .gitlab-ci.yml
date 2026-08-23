@@ -3,6 +3,7 @@ stages:
   - build
   - publish
   - deploy
+  - smoke
 
 # ---------------------------------------------------------
 # Validate
@@ -155,3 +156,21 @@ deploy_dev:
     - 'KUBECONFIG="$KUBE_CONFIG" helm upgrade opsboard helm/opsboard --namespace opsboard --install --set vote.image.tag="$CI_COMMIT_SHORT_SHA" --set result.image.tag="$CI_COMMIT_SHORT_SHA" --set worker.image.tag="$CI_COMMIT_SHORT_SHA" --atomic --wait --timeout 5m'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
     - 'echo "OpsBoard dev deployment completed successfully"'
+
+# ---------------------------------------------------------
+# Smoke Test Development
+# ---------------------------------------------------------
+smoke_test_dev:
+  stage: smoke
+  when: manual
+  allow_failure: true
+  environment:
+    name: dev
+  script:
+    - 'echo "Running OpsBoard dev smoke tests"'
+    - 'test -f "$KUBE_CONFIG"'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/vote -n opsboard --timeout=60s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/result -n opsboard --timeout=60s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard --timeout=60s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
+    - 'echo "OpsBoard dev smoke tests passed"'
