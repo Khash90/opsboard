@@ -4,6 +4,7 @@ stages:
   - publish
   - deploy
   - smoke
+  - rollback
 
 # ---------------------------------------------------------
 # Validate
@@ -174,3 +175,21 @@ smoke_test_dev:
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard --timeout=60s'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
     - 'echo "OpsBoard dev smoke tests passed"'
+
+# ---------------------------------------------------------
+# Rollback Development
+# ---------------------------------------------------------
+rollback_dev:
+  stage: rollback
+  when: manual
+  allow_failure: true
+  environment:
+    name: dev
+  script:
+    - 'echo "Rolling OpsBoard dev back to the previous Helm revision"'
+    - 'test -f "$KUBE_CONFIG"'
+    - 'KUBECONFIG="$KUBE_CONFIG" helm history opsboard -n opsboard'
+    - 'KUBECONFIG="$KUBE_CONFIG" helm rollback opsboard 0 -n opsboard --wait --timeout 5m'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
+    - 'KUBECONFIG="$KUBE_CONFIG" helm history opsboard -n opsboard'
+    - 'echo "OpsBoard dev rollback completed successfully"'
