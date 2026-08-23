@@ -87,3 +87,39 @@ publish_vote:
     - 'docker push "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Published vote image: $CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
+
+# ---------------------------------------------------------
+# Publish Result
+# ---------------------------------------------------------
+publish_result:
+  stage: publish
+  when: manual
+  allow_failure: true
+  script:
+    - 'echo "Publishing OpsBoard result image"'
+    - 'test -n "$CI_REGISTRY"'
+    - 'test -n "$CI_REGISTRY_USER"'
+    - 'test -n "$CI_REGISTRY_PASSWORD"'
+    - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+    - 'docker build -t "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA" app/result'
+    - 'docker push "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
+    - 'docker logout "$CI_REGISTRY"'
+    - 'echo "Published result image: $CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
+
+# ---------------------------------------------------------
+# Publish Worker
+# ---------------------------------------------------------
+publish_worker:
+  stage: publish
+  when: manual
+  allow_failure: true
+  script:
+    - 'echo "Publishing OpsBoard worker image"'
+    - 'test -n "$CI_REGISTRY"'
+    - 'test -n "$CI_REGISTRY_USER"'
+    - 'test -n "$CI_REGISTRY_PASSWORD"'
+    - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+    - 'docker build -t "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA" app/worker'
+    - 'docker push "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
+    - 'docker logout "$CI_REGISTRY"'
+    - 'echo "Published worker image: $CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
