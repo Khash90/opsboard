@@ -1,6 +1,7 @@
 stages:
   - validate
   - build
+  - publish
 
 # ---------------------------------------------------------
 # Validate
@@ -13,6 +14,22 @@ validate_pipeline:
     - 'echo "Runner user: $(whoami)"'
     - 'docker version'
     - 'echo "Validation completed successfully"'
+
+# ---------------------------------------------------------
+# Registry Authentication Check
+# ---------------------------------------------------------
+registry_auth_check:
+  stage: validate
+  when: manual
+  allow_failure: true
+  script:
+    - 'echo "Checking GitLab Container Registry authentication"'
+    - 'test -n "$CI_REGISTRY"'
+    - 'test -n "$CI_REGISTRY_USER"'
+    - 'test -n "$CI_REGISTRY_PASSWORD"'
+    - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+    - 'docker logout "$CI_REGISTRY"'
+    - 'echo "Registry authentication verified successfully"'
 
 # ---------------------------------------------------------
 # Build Vote
@@ -54,17 +71,19 @@ build_worker:
     - 'echo "Worker image built successfully"'
 
 # ---------------------------------------------------------
-# Registry Authentication Check
+# Publish Vote
 # ---------------------------------------------------------
-registry_auth_check:
-  stage: validate
+publish_vote:
+  stage: publish
   when: manual
   allow_failure: true
   script:
-    - 'echo "Checking GitLab Container Registry authentication"'
+    - 'echo "Publishing OpsBoard vote image"'
     - 'test -n "$CI_REGISTRY"'
     - 'test -n "$CI_REGISTRY_USER"'
     - 'test -n "$CI_REGISTRY_PASSWORD"'
     - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+    - 'docker build -t "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA" app/vote'
+    - 'docker push "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
     - 'docker logout "$CI_REGISTRY"'
-    - 'echo "Registry authentication verified successfully"'
+    - 'echo "Published vote image: $CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
