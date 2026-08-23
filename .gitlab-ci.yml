@@ -2,6 +2,7 @@ stages:
   - validate
   - build
   - publish
+  - deploy
 
 # ---------------------------------------------------------
 # Validate
@@ -30,6 +31,20 @@ registry_auth_check:
     - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Registry authentication verified successfully"'
+
+# ---------------------------------------------------------
+# Kubernetes Authentication Check
+# ---------------------------------------------------------
+kubernetes_auth_check:
+  stage: validate
+  when: manual
+  allow_failure: true
+  script:
+    - 'echo "Checking Kubernetes authentication"'
+    - 'test -f "$KUBE_CONFIG"'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl auth can-i patch deployments -n opsboard'
+    - 'echo "Kubernetes authentication verified successfully"'
 
 # ---------------------------------------------------------
 # Build Vote
@@ -124,18 +139,19 @@ publish_worker:
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Published worker image: $CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
 
-
-
 # ---------------------------------------------------------
-# Kubernetes Authentication Check
+# Deploy Development
 # ---------------------------------------------------------
-kubernetes_auth_check:
-  stage: validate
+deploy_dev:
+  stage: deploy
   when: manual
   allow_failure: true
+  environment:
+    name: dev
   script:
-    - 'echo "Checking Kubernetes authentication"'
+    - 'echo "Deploying OpsBoard commit $CI_COMMIT_SHORT_SHA to dev"'
     - 'test -f "$KUBE_CONFIG"'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl auth can-i patch deployments -n opsboard'
-    - 'echo "Kubernetes authentication verified successfully"'
+    - 'KUBECONFIG="$KUBE_CONFIG" helm upgrade opsboard helm/opsboard --namespace opsboard --install --set vote.image.tag="$CI_COMMIT_SHORT_SHA" --set result.image.tag="$CI_COMMIT_SHORT_SHA" --set worker.image.tag="$CI_COMMIT_SHORT_SHA" --atomic --wait --timeout 5m'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
+    - 'echo "OpsBoard dev deployment completed successfully"'
