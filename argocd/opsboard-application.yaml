@@ -16,4 +16,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: opsboard
 
-  syncPolicy: {}
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: true
+      allowEmpty: false
