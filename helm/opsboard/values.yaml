@@ -103,7 +103,7 @@ worker:
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/worker
-    tag: "66069852"
+    tag: "0851380d"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -138,7 +138,7 @@ vote:
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/vote
-    tag: "66069852"
+    tag: "0851380d"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -186,7 +186,7 @@ result:
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/result
-    tag: "66069852"
+    tag: "0851380d"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
