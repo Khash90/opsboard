@@ -2,13 +2,15 @@ stages:
   - validate
   - build
   - publish
-  - deploy
   - smoke
-  - rollback
+
 
 # ---------------------------------------------------------
 # Validate
 # ---------------------------------------------------------
+# Basic runner/environment validation.
+# This remains part of the normal CI pipeline.
+
 validate_pipeline:
   stage: validate
   script:
@@ -18,9 +20,13 @@ validate_pipeline:
     - 'docker version'
     - 'echo "Validation completed successfully"'
 
+
 # ---------------------------------------------------------
 # Registry Authentication Check
 # ---------------------------------------------------------
+# Manual diagnostic job.
+# Verifies GitLab Container Registry credentials only.
+
 registry_auth_check:
   stage: validate
   when: manual
@@ -34,9 +40,18 @@ registry_auth_check:
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Registry authentication verified successfully"'
 
+
 # ---------------------------------------------------------
 # Kubernetes Authentication Check
 # ---------------------------------------------------------
+# Manual diagnostic job.
+#
+# Kubernetes credentials are temporarily retained because the
+# smoke-test job still performs read-only rollout checks.
+#
+# Argo CD now owns deployment/reconciliation of OpsBoard.
+# GitLab CI must not directly deploy or roll back the release.
+
 kubernetes_auth_check:
   stage: validate
   when: manual
@@ -45,12 +60,16 @@ kubernetes_auth_check:
     - 'echo "Checking Kubernetes authentication"'
     - 'test -f "$KUBE_CONFIG"'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl auth can-i patch deployments -n opsboard'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl auth can-i get deployments -n opsboard'
     - 'echo "Kubernetes authentication verified successfully"'
+
 
 # ---------------------------------------------------------
 # Build Vote
 # ---------------------------------------------------------
+# Safe demo build.
+# Builds locally on the self-hosted runner but does not publish.
+
 build_vote:
   stage: build
   when: manual
@@ -61,9 +80,13 @@ build_vote:
     - 'docker image inspect opsboard-vote:ci-demo >/dev/null'
     - 'echo "Vote image built successfully"'
 
+
 # ---------------------------------------------------------
 # Build Result
 # ---------------------------------------------------------
+# Safe demo build.
+# Builds locally on the self-hosted runner but does not publish.
+
 build_result:
   stage: build
   when: manual
@@ -74,9 +97,13 @@ build_result:
     - 'docker image inspect opsboard-result:ci-demo >/dev/null'
     - 'echo "Result image built successfully"'
 
+
 # ---------------------------------------------------------
 # Build Worker
 # ---------------------------------------------------------
+# Safe demo build.
+# Builds locally on the self-hosted runner but does not publish.
+
 build_worker:
   stage: build
   when: manual
@@ -87,9 +114,16 @@ build_worker:
     - 'docker image inspect opsboard-worker:ci-demo >/dev/null'
     - 'echo "Worker image built successfully"'
 
+
 # ---------------------------------------------------------
 # Publish Vote
 # ---------------------------------------------------------
+# Builds and pushes an immutable image tag based on the
+# Git commit SHA.
+#
+# Publishing is CI responsibility.
+# Deployment is Argo CD responsibility.
+
 publish_vote:
   stage: publish
   when: manual
@@ -105,9 +139,11 @@ publish_vote:
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Published vote image: $CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
 
+
 # ---------------------------------------------------------
 # Publish Result
 # ---------------------------------------------------------
+
 publish_result:
   stage: publish
   when: manual
@@ -123,9 +159,11 @@ publish_result:
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Published result image: $CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
 
+
 # ---------------------------------------------------------
 # Publish Worker
 # ---------------------------------------------------------
+
 publish_worker:
   stage: publish
   when: manual
@@ -141,26 +179,15 @@ publish_worker:
     - 'docker logout "$CI_REGISTRY"'
     - 'echo "Published worker image: $CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
 
-# ---------------------------------------------------------
-# Deploy Development
-# ---------------------------------------------------------
-deploy_dev:
-  stage: deploy
-  when: manual
-  allow_failure: true
-  environment:
-    name: dev
-  script:
-    - 'echo "Deploying OpsBoard commit $CI_COMMIT_SHORT_SHA to dev"'
-    - 'test -f "$KUBE_CONFIG"'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'KUBECONFIG="$KUBE_CONFIG" helm upgrade opsboard helm/opsboard --namespace opsboard --install --set vote.image.tag="$CI_COMMIT_SHORT_SHA" --set result.image.tag="$CI_COMMIT_SHORT_SHA" --set worker.image.tag="$CI_COMMIT_SHORT_SHA" --atomic --wait --timeout 5m'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'echo "OpsBoard dev deployment completed successfully"'
 
 # ---------------------------------------------------------
 # Smoke Test Development
 # ---------------------------------------------------------
+# Read-only verification against the live Kubernetes cluster.
+#
+# This job does not deploy, patch, roll back, or mutate workloads.
+# Argo CD is the single deployment/reconciliation authority.
+
 smoke_test_dev:
   stage: smoke
   when: manual
@@ -175,21 +202,3 @@ smoke_test_dev:
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard --timeout=60s'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
     - 'echo "OpsBoard dev smoke tests passed"'
-
-# ---------------------------------------------------------
-# Rollback Development
-# ---------------------------------------------------------
-rollback_dev:
-  stage: rollback
-  when: manual
-  allow_failure: true
-  environment:
-    name: dev
-  script:
-    - 'echo "Rolling OpsBoard dev back to the previous Helm revision"'
-    - 'test -f "$KUBE_CONFIG"'
-    - 'KUBECONFIG="$KUBE_CONFIG" helm history opsboard -n opsboard'
-    - 'KUBECONFIG="$KUBE_CONFIG" helm rollback opsboard 0 -n opsboard --wait --timeout 5m'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'KUBECONFIG="$KUBE_CONFIG" helm history opsboard -n opsboard'
-    - 'echo "OpsBoard dev rollback completed successfully"'
