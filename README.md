@@ -53,7 +53,7 @@ The project is being implemented incrementally. Each completed phase is validate
 * [x] Local GitLab Container Registry integration
 * [x] Kubernetes private registry authentication
 * [x] Kubernetes image migration to local GitLab registry
-* [ ] Argo CD GitOps deployment
+* [x] Argo CD GitOps deployment
 * [ ] Prometheus metrics collection
 * [ ] Grafana dashboards
 * [ ] Loki centralized logging
