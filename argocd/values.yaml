@@ -1,0 +1,23 @@
+# OpsBoard Argo CD Helm values
+# Development/lab configuration.
+
+global:
+  # Argo CD workloads should run only on Linux nodes.
+  # VM1's control-plane NoSchedule taint naturally keeps these
+  # workloads on the worker node without hard-coding a hostname.
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  # Do not allow Argo CD workloads to tolerate the control-plane taint.
+  tolerations: []
+
+# Dex provides external SSO integration.
+# It is not needed yet in the local development lab.
+dex:
+  enabled: false
+
+server:
+  # Keep the Argo CD API/UI internal to the cluster.
+  # We will access it safely using kubectl port-forward first.
+  service:
+    type: ClusterIP
