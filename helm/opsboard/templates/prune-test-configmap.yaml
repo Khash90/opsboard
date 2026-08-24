@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opsboard-prune-test
+  namespace: opsboard
+data:
+  purpose: "Temporary Argo CD prune test"
