@@ -1,4 +1,17 @@
-# Default values for the OpsBoard Helm chart.
+# ============================================================
+# OpsBoard Helm Chart - Default Values
+# ============================================================
+# This file defines the desired Kubernetes configuration for
+# Redis, PostgreSQL, Worker, Vote, and Result.
+#
+# Argo CD reads these values from Git and compares them against
+# the live Kubernetes cluster.
+# ============================================================
+
+
+# ============================================================
+# Redis
+# ============================================================
 
 redis:
   enabled: true
@@ -29,6 +42,11 @@ redis:
   livenessProbe:
     initialDelaySeconds: 10
     periodSeconds: 10
+
+
+# ============================================================
+# PostgreSQL
+# ============================================================
 
 postgres:
   enabled: true
@@ -70,12 +88,22 @@ postgres:
     initialDelaySeconds: 15
     periodSeconds: 10
 
+
+# ============================================================
+# Worker
+# ============================================================
+# Processes votes from Redis and stores results in PostgreSQL.
+#
+# The image tag is immutable and represents the currently
+# approved GitOps release.
+# ============================================================
+
 worker:
   enabled: true
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/worker
-    tag: latest
+    tag: "66069852"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -96,12 +124,21 @@ worker:
       cpu: 500m
       memory: 512Mi
 
+
+# ============================================================
+# Vote Application
+# ============================================================
+# Front-end service where users submit votes.
+#
+# Exposed through NodePort 30080 in the local lab.
+# ============================================================
+
 vote:
   enabled: true
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/vote
-    tag: latest
+    tag: "66069852"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -110,6 +147,8 @@ vote:
     host: redis
     port: 6379
 
+  # Host-browser URL used by the Vote application to redirect
+  # users to the Result application in the VirtualBox lab.
   resultUrl: http://127.0.0.1:8082
 
   service:
@@ -133,12 +172,21 @@ vote:
     initialDelaySeconds: 15
     periodSeconds: 10
 
+
+# ============================================================
+# Result Application
+# ============================================================
+# Displays the current voting results stored in PostgreSQL.
+#
+# Exposed through NodePort 30081 in the local lab.
+# ============================================================
+
 result:
   enabled: true
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/result
-    tag: latest
+    tag: "66069852"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
