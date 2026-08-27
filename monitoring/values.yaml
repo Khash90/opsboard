@@ -1,0 +1,115 @@
+# OpsBoard monitoring stack
+# kube-prometheus-stack chart version: 88.5.4
+#
+# Lab design:
+# - Prometheus/Grafana and supporting controllers should stay off VM1.
+# - VM1's control-plane NoSchedule taint naturally keeps them on VM2.
+# - GitLab already runs node-exporter on VM1, so the Kubernetes
+#   node-exporter is restricted to VM2 to avoid a port 9100 conflict.
+
+grafana:
+  enabled: true
+
+  # Use the Ubuntu image variant because the default Grafana 13.2.0
+  # image had a corrupted zero-byte /run.sh after the interrupted install.
+  image:
+    repository: grafana/grafana
+    tag: "13.2.0-ubuntu"
+
+  # Keep the service internal to Kubernetes.
+  # Host-browser access will be provided with kubectl port-forward
+  # and VirtualBox NAT port forwarding.
+  service:
+    type: ClusterIP
+
+  # Persist dashboards/settings across pod recreation.
+  persistence:
+    enabled: true
+    type: sts
+    storageClassName: local-path
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+
+  # Lab-sized resources.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Do not permit Grafana onto the tainted control-plane node.
+  tolerations: []
+
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 300m
+      memory: 300Mi
+
+  # VM1's control-plane taint keeps the operator on VM2.
+  tolerations: []
+
+
+prometheus:
+  enabled: true
+
+  service:
+    type: ClusterIP
+
+  prometheusSpec:
+    # Store enough history for the lab without allowing Prometheus
+    # data to grow indefinitely.
+    retention: 10d
+    retentionSize: 4GB
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+    # Do not tolerate VM1's control-plane taint.
+    tolerations: []
+
+    # Persistent Prometheus time-series storage.
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Keep kube-state-metrics off the control-plane node.
+  tolerations: []
+
+
+prometheus-node-exporter:
+  enabled: true
+
+  # GitLab already runs node-exporter on VM1 port 9100.
+  # Restrict the Kubernetes node-exporter to VM2 to avoid
+  # a host-port collision.
+  nodeSelector:
+    kubernetes.io/hostname: ubuntuvm2
