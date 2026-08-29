@@ -18,6 +18,34 @@ dex:
 
 server:
   # Keep the Argo CD API/UI internal to the cluster.
-  # We will access it safely using kubectl port-forward first.
+  # We access it through kubectl port-forward in the lab.
   service:
     type: ClusterIP
+
+repoServer:
+  # The repo-server performs Git fetches and manifest generation.
+  # Give it guaranteed baseline resources so it is not starved
+  # on the constrained worker VM.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # The default 1-second probe timeout has been too aggressive
+  # in this lab and caused repeated repo-server restarts.
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
