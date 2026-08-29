@@ -62,12 +62,29 @@ def get_redis():
     return g.redis
 
 
+def get_vote_label(vote):
+    """
+    Translate the form's internal vote values into human-readable labels
+    for Prometheus.
+
+    Redis continues receiving the original values ("a" or "b") so the
+    existing application workflow remains unchanged.
+    """
+    if vote == "a":
+        return option_a
+
+    if vote == "b":
+        return option_b
+
+    return "Unknown"
+
+
 @app.route("/healthz")
 def healthz():
     """
     Lightweight health endpoint.
 
-    Monitoring and container health checks use this endpoint so they do not
+    Monitoring and Kubernetes health checks use this endpoint so they do not
     artificially increase the application page-view counter.
     """
     return {"status": "ok"}, 200
@@ -111,11 +128,13 @@ def hello():
             }
         )
 
-        # Persist the vote to Redis first.
-        # Only count the vote after Redis successfully accepts it.
+        # Persist the original vote value to Redis first.
+        # This preserves compatibility with the existing worker/result flow.
         redis.rpush("votes", data)
 
-        votes_submitted_total.labels(choice=vote).inc()
+        # Prometheus gets the human-readable option name instead of "a"/"b".
+        vote_label = get_vote_label(vote)
+        votes_submitted_total.labels(choice=vote_label).inc()
 
         # Redirect the browser to the result service
         # after successfully queuing the vote.
