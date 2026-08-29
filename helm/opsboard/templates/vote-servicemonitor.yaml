@@ -1,0 +1,26 @@
+{{- if .Values.vote.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vote
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: vote
+    app.kubernetes.io/part-of: opsboard
+    release: monitoring
+
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vote
+
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 5s
+{{- end }}
