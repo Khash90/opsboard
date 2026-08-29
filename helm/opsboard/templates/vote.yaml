@@ -47,14 +47,14 @@ spec:
 
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: http
             initialDelaySeconds: {{ .Values.vote.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.vote.readinessProbe.periodSeconds }}
 
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: http
             initialDelaySeconds: {{ .Values.vote.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.vote.livenessProbe.periodSeconds }}
@@ -86,4 +86,5 @@ spec:
       port: {{ .Values.vote.service.port }}
       targetPort: http
       nodePort: {{ .Values.vote.service.nodePort }}
+
 {{- end }}
