@@ -138,7 +138,7 @@ vote:
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/vote
-    tag: "66069852"
+    tag: "metrics-v1"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
