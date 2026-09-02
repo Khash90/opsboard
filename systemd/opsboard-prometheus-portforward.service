@@ -1,0 +1,22 @@
+[Unit]
+Description=OpsBoard Prometheus Kubernetes Port Forward
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=khash1
+Environment=KUBECONFIG=/home/khash1/.kube/config
+
+ExecStart=/usr/bin/kubectl \
+  --namespace monitoring \
+  port-forward \
+  --address 0.0.0.0 \
+  service/monitoring-kube-prometheus-prometheus \
+  9091:9090
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

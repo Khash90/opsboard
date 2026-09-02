@@ -1,0 +1,22 @@
+[Unit]
+Description=OpsBoard Argo CD Kubernetes Port Forward
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=khash1
+Environment=KUBECONFIG=/home/khash1/.kube/config
+
+ExecStart=/usr/bin/kubectl \
+  --namespace argocd \
+  port-forward \
+  --address 0.0.0.0 \
+  service/argocd-server \
+  8083:443
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

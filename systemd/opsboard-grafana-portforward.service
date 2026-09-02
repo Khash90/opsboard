@@ -1,0 +1,22 @@
+[Unit]
+Description=OpsBoard Grafana Kubernetes Port Forward
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=khash1
+Environment=KUBECONFIG=/home/khash1/.kube/config
+
+ExecStart=/usr/bin/kubectl \
+  --namespace monitoring \
+  port-forward \
+  --address 0.0.0.0 \
+  service/monitoring-grafana \
+  3000:80
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
