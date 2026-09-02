@@ -45,6 +45,24 @@ spec:
             - name: RESULT_URL
               value: {{ .Values.vote.resultUrl | quote }}
 
+            - name: POSTGRES_HOST
+              value: {{ .Values.vote.postgres.host | quote }}
+
+            - name: POSTGRES_PORT
+              value: {{ .Values.vote.postgres.port | quote }}
+
+            - name: POSTGRES_USER
+              value: {{ .Values.vote.postgres.user | quote }}
+
+            - name: POSTGRES_DB
+              value: {{ .Values.vote.postgres.database | quote }}
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
           readinessProbe:
             httpGet:
               path: /healthz
@@ -86,5 +104,4 @@ spec:
       port: {{ .Values.vote.service.port }}
       targetPort: http
       nodePort: {{ .Values.vote.service.nodePort }}
-
 {{- end }}

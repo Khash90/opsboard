@@ -93,9 +93,6 @@ postgres:
 # Worker
 # ============================================================
 # Processes votes from Redis and stores results in PostgreSQL.
-#
-# The image tag is immutable and represents the currently
-# approved GitOps release.
 # ============================================================
 
 worker:
@@ -130,6 +127,9 @@ worker:
 # ============================================================
 # Front-end service where users submit votes.
 #
+# Operational counters remain process-local Prometheus metrics.
+# Durable business totals are backed by PostgreSQL.
+#
 # Exposed through NodePort 30080 in the local lab.
 # ============================================================
 
@@ -138,7 +138,7 @@ vote:
 
   image:
     repository: 10.0.2.5:5050/opsboard/opsboard/vote
-    tag: "metrics-v2"
+    tag: "metrics-v3"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -146,6 +146,12 @@ vote:
   redis:
     host: redis
     port: 6379
+
+  postgres:
+    host: db
+    port: 5432
+    user: postgres
+    database: postgres
 
   # Host-browser URL used by the Vote application to redirect
   # users to the Result application in the VirtualBox lab.
