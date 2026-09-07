@@ -1,14 +1,18 @@
 # OpsBoard Loki configuration
-# Day 16 - centralized logging
+# Day 16/17 - centralized logging + log-based alerting
 #
 # Small single-node lab deployment:
 # - Monolithic Loki
-# - One replica
+# - One Loki replica
 # - Local filesystem storage
 # - Persistent local-path PVC
 # - Authentication disabled because Loki is internal to the cluster
+# - Grafana Alloy collects Kubernetes pod logs
+# - Loki evaluates application log alert rules
+# - Alert notifications are forwarded to Alertmanager
 
 deploymentMode: Monolithic
+
 
 loki:
   auth_enabled: false
@@ -29,6 +33,25 @@ loki:
   storage:
     type: filesystem
 
+  # Loki's ruler runs inside the monolithic target=all process.
+  rulerConfig:
+    storage:
+      type: local
+      local:
+        directory: /etc/loki/rules
+
+    rule_path: /tmp/loki/rules-temp
+
+    alertmanager_url: >-
+      http://monitoring-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093
+
+    enable_alertmanager_v2: true
+    enable_api: true
+
+    evaluation_interval: 30s
+    poll_interval: 30s
+
+
 singleBinary:
   replicas: 1
 
@@ -48,8 +71,9 @@ singleBinary:
   nodeSelector:
     kubernetes.io/hostname: ubuntuvm2
 
-# Disable Simple Scalable components because this lab uses
-# the Monolithic deployment mode.
+
+# Distributed Loki components are disabled because this lab uses
+# monolithic single-binary mode.
 read:
   replicas: 0
 
@@ -59,21 +83,134 @@ write:
 backend:
   replicas: 0
 
-# Components unnecessary for this small monolithic lab.
+
 gateway:
   enabled: false
+
 
 chunksCache:
   enabled: false
 
+
 resultsCache:
   enabled: false
+
 
 lokiCanary:
   enabled: false
 
+
 test:
   enabled: false
 
+
 minio:
   enabled: false
+
+
+# ------------------------------------------------------------------
+# Ruler configuration
+# ------------------------------------------------------------------
+#
+# No standalone ruler workload is created.
+#
+# The singleBinary Loki process runs with:
+#
+#   -target=all
+#
+# which includes ruler functionality.
+#
+# Loki authentication is disabled, so the local tenant ID is "fake".
+#
+ruler:
+  enabled: true
+
+  # Keep this at zero in Monolithic mode.
+  # A non-zero value would create a separate ruler workload and
+  # conflict with the monolithic singleBinary deployment.
+  replicas: 0
+
+  # Declaring the tenant allows the singleBinary workload to mount
+  # the expected local rules ConfigMap path.
+  directories:
+    fake: {}
+
+
+# ------------------------------------------------------------------
+# OpsBoard Loki alert rules
+# ------------------------------------------------------------------
+#
+# The singleBinary workload expects:
+#
+#   ConfigMap: loki-single-binary-rules-fake
+#
+# mounted at:
+#
+#   /etc/loki/rules/fake
+#
+# Helm processes extraObjects through tpl, so Loki's {{ $labels.* }}
+# templates must be escaped below. Helm writes them literally into
+# the ConfigMap and Loki evaluates them later.
+#
+extraObjects:
+
+  - apiVersion: v1
+    kind: ConfigMap
+
+    metadata:
+      name: loki-single-binary-rules-fake
+      namespace: logging
+
+    data:
+      opsboard-alerts.yaml: |
+        groups:
+
+          - name: opsboard.log.rules
+
+            rules:
+
+              # -------------------------------------------------------
+              # OpsBoard application errors/warnings in Loki
+              # -------------------------------------------------------
+              #
+              # Watches only the five core OpsBoard applications.
+              #
+              # The known harmless Redis startup warning is explicitly
+              # excluded to avoid a false alert after VM/container boot.
+              #
+              - alert: OpsBoardLogErrors
+
+                expr: |
+                  sum by (app, pod, container) (
+                    count_over_time(
+                      {
+                        namespace="opsboard",
+                        app=~"vote|result|worker|redis|postgres"
+                      }
+                      |~ "(?i)error|warning|warn|exception|failed|failure|fatal|panic"
+                      != "no config file specified, using the default config"
+                      [2m]
+                    )
+                  ) > 0
+
+                # Require the condition to persist so one transient
+                # message does not immediately generate email.
+                for: 1m
+
+                labels:
+                  severity: warning
+                  namespace: opsboard
+                  category: logs
+
+                annotations:
+                  summary: "OpsBoard application error detected in logs"
+
+                  description: >-
+                    Loki detected error/warning log activity from application
+                    {{ "{{ $labels.app }}" }}, pod
+                    {{ "{{ $labels.pod }}" }}, container
+                    {{ "{{ $labels.container }}" }}.
+
+                    Review the application's recent logs in Grafana/Loki and
+                    investigate the underlying application, dependency,
+                    configuration, or infrastructure issue.

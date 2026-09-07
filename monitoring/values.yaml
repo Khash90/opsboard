@@ -6,6 +6,9 @@
 # - VM1's control-plane NoSchedule taint naturally keeps them on VM2.
 # - GitLab already runs node-exporter on VM1, so the Kubernetes
 #   node-exporter is restricted to VM2 to avoid a port 9100 conflict.
+# - Alertmanager sends OpsBoard notifications through Gmail.
+# - The Gmail App Password is stored only in a Kubernetes Secret
+#   named alertmanager-gmail and is never committed to Git.
 
 grafana:
   enabled: true
@@ -17,8 +20,8 @@ grafana:
     tag: "13.2.0-ubuntu"
 
   # Keep the service internal to Kubernetes.
-  # Host-browser access will be provided with kubectl port-forward
-  # and VirtualBox NAT port forwarding.
+  # Host-browser access is provided through the systemd-managed
+  # kubectl port-forward on VM1 and VirtualBox NAT forwarding.
   service:
     type: ClusterIP
 
@@ -90,6 +93,173 @@ prometheus:
           resources:
             requests:
               storage: 5Gi
+
+
+alertmanager:
+  enabled: true
+
+  # Alertmanager configuration managed declaratively by Helm.
+  config:
+    global:
+      resolve_timeout: 5m
+
+      # Gmail SMTP configuration.
+      smtp_smarthost: "smtp.gmail.com:587"
+      smtp_from: "khashayar.m.003@gmail.com"
+      smtp_auth_username: "khashayar.m.003@gmail.com"
+
+      # The password itself is NOT stored in this file.
+      # The Prometheus Operator mounts the Kubernetes Secret below
+      # into the Alertmanager container.
+      smtp_auth_password_file: "/etc/alertmanager/secrets/alertmanager-gmail/smtp-password"
+
+      # Gmail port 587 uses STARTTLS.
+      smtp_require_tls: true
+
+    # Prevent lower-severity copies of the same alert from generating
+    # duplicate notifications while a higher-severity alert is active.
+    inhibit_rules:
+      - source_matchers:
+          - "severity = critical"
+        target_matchers:
+          - "severity =~ warning|info"
+        equal:
+          - namespace
+          - alertname
+
+      - source_matchers:
+          - "severity = warning"
+        target_matchers:
+          - "severity = info"
+        equal:
+          - namespace
+          - alertname
+
+      - source_matchers:
+          - "alertname = InfoInhibitor"
+        target_matchers:
+          - "severity = info"
+        equal:
+          - namespace
+
+      - target_matchers:
+          - "alertname = InfoInhibitor"
+
+    route:
+      # Group related alerts so one incident does not generate
+      # a separate email for every pod/container.
+      group_by:
+        - namespace
+        - alertname
+
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+
+      # Normal alerts are sent through Gmail.
+      receiver: opsboard-email
+
+      routes:
+        # Watchdog is intentionally always firing as a monitoring
+        # heartbeat. Do not email it.
+        - matchers:
+            - 'alertname = "Watchdog"'
+          receiver: "null"
+
+        # Prometheus Operator informational inhibitor alerts should
+        # also remain silent.
+        - matchers:
+            - 'alertname = "InfoInhibitor"'
+          receiver: "null"
+
+    receivers:
+      # Sink receiver for intentionally ignored alerts.
+      - name: "null"
+
+      # Main OpsBoard email receiver.
+      - name: opsboard-email
+        email_configs:
+          - to: "khashayar.m.003@gmail.com"
+            from: "khashayar.m.003@gmail.com"
+            send_resolved: true
+            require_tls: true
+
+            headers:
+              Subject: >-
+                [OpsBoard] {{ .Status }} - {{ .CommonLabels.alertname }}
+
+            html: |
+              <h2>OpsBoard Alert</h2>
+
+              <p>
+                <strong>Status:</strong> {{ .Status }}<br>
+                <strong>Alert:</strong> {{ .CommonLabels.alertname }}<br>
+                <strong>Severity:</strong> {{ .CommonLabels.severity }}<br>
+                <strong>Namespace:</strong> {{ .CommonLabels.namespace }}
+              </p>
+
+              {{ range .Alerts }}
+              <hr>
+
+              <p>
+                <strong>Summary:</strong>
+                {{ .Annotations.summary }}
+              </p>
+
+              <p>
+                <strong>Description:</strong>
+                {{ .Annotations.description }}
+              </p>
+
+              <p>
+                <strong>Application:</strong>
+                {{ .Labels.app }}
+                <br>
+
+                <strong>Pod:</strong>
+                {{ .Labels.pod }}
+                <br>
+
+                <strong>Container:</strong>
+                {{ .Labels.container }}
+                <br>
+
+                <strong>Instance:</strong>
+                {{ .Labels.instance }}
+              </p>
+
+              <p>
+                <strong>Started:</strong>
+                {{ .StartsAt }}
+              </p>
+
+              {{ if .GeneratorURL }}
+              <p>
+                <a href="{{ .GeneratorURL }}">
+                  Open alert source
+                </a>
+              </p>
+              {{ end }}
+
+              {{ end }}
+
+    templates: []
+
+  alertmanagerSpec:
+    # Mount the existing Kubernetes Secret:
+    #
+    #   alertmanager-gmail
+    #
+    # It becomes available inside Alertmanager at:
+    #
+    # /etc/alertmanager/secrets/alertmanager-gmail/
+    #
+    # The actual password never appears in this repository.
+    secrets:
+      - alertmanager-gmail
+
+    # Keep Alertmanager off VM1's tainted control-plane node.
+    tolerations: []
 
 
 kube-state-metrics:

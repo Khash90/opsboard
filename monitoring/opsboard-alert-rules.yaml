@@ -1,0 +1,104 @@
+# OpsBoard custom Prometheus alert rules
+# Day 17 - application-specific alerting
+#
+# Generic Kubernetes conditions such as PodNotReady, CrashLoopBackOff,
+# TargetDown, and PVC capacity are already covered by kube-prometheus-stack.
+#
+# These rules intentionally focus on OpsBoard-specific operational signals.
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+
+metadata:
+  name: opsboard-alert-rules
+  namespace: monitoring
+
+  # kube-prometheus-stack uses this label to select PrometheusRule objects.
+  labels:
+    release: monitoring
+
+spec:
+  groups:
+    - name: opsboard.application.rules
+
+      rules:
+
+        # -------------------------------------------------------------
+        # Repeated container restarts
+        # -------------------------------------------------------------
+        #
+        # The built-in KubePodCrashLooping alert detects containers that
+        # enter a true CrashLoopBackOff.
+        #
+        # This alert is intentionally different: it detects multiple
+        # restarts over a short period even if Kubernetes has not yet
+        # classified the container as crash-looping.
+        #
+        - alert: OpsBoardRestartBurst
+
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="opsboard"
+              }[10m]
+            ) >= 2
+
+          for: 1m
+
+          labels:
+            severity: warning
+            namespace: opsboard
+
+          annotations:
+            summary: "OpsBoard container is restarting repeatedly"
+
+            description: >-
+              Container {{ $labels.container }} in pod
+              {{ $labels.pod }} restarted at least twice during
+              the last 10 minutes.
+
+              Investigate the container logs, pod events,
+              readiness/liveness probes, resource limits,
+              dependencies, and application configuration.
+
+
+        # -------------------------------------------------------------
+        # Durable Vote metrics disappeared
+        # -------------------------------------------------------------
+        #
+        # The Vote service exposes PostgreSQL-backed durable metrics.
+        # Their disappearance can indicate:
+        #
+        # - Vote metrics endpoint unavailable
+        # - ServiceMonitor/scrape failure
+        # - application metrics regression
+        # - Vote application failure
+        #
+        # TargetDown may also detect complete scrape failures, but this
+        # rule specifically verifies that the important OpsBoard
+        # business metric itself still exists.
+        #
+        - alert: OpsBoardBusinessMetricsMissing
+
+          expr: |
+            absent(
+              opsboard_votes_persisted_total
+            )
+
+          for: 2m
+
+          labels:
+            severity: critical
+            namespace: opsboard
+            app: vote
+
+          annotations:
+            summary: "OpsBoard durable business metrics are unavailable"
+
+            description: >-
+              Prometheus has not observed
+              opsboard_votes_persisted_total for at least two minutes.
+
+              The Vote metrics endpoint, Prometheus scrape path,
+              ServiceMonitor, Vote application, or PostgreSQL-backed
+              metric generation may be unavailable.
