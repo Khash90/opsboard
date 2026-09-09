@@ -22,7 +22,7 @@
 - [x] Linux host preparation
 - [x] SSH key-based automation
 - [x] Ansible automation
-- [ ] Terraform infrastructure provisioning
+- [x] Terraform infrastructure topology and environment modeling
 - [x] kubeadm Kubernetes cluster
 - [x] Voting application integration
 - [x] Docker image build workflow
@@ -41,9 +41,9 @@
 - [x] Loki centralized logging
 - [x] Grafana Alloy log collection
 - [x] Alertmanager configuration
-- [ ] Development environment validation
-- [ ] Staging environment deployment
-- [ ] Production environment deployment
+- [x] Development environment validation
+- [x] Staging environment deployment
+- [x] Production environment deployment
 - [ ] Final security hardening
 - [ ] Automated backup and recovery
 
