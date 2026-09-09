@@ -1,0 +1,22 @@
+# ============================================================
+# OpsBoard Helm Chart - Production Overrides
+# ============================================================
+#
+# Production reuses the common values from values.yaml and
+# changes only settings that must differ inside the shared lab
+# cluster.
+# ============================================================
+
+vote:
+  resultUrl: http://127.0.0.1:8087
+
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30084
+
+result:
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30085

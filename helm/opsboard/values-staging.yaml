@@ -1,0 +1,21 @@
+# ============================================================
+# OpsBoard Helm Chart - Staging Overrides
+# ============================================================
+#
+# Staging reuses the common values from values.yaml and changes
+# only settings that must differ inside the shared lab cluster.
+# ============================================================
+
+vote:
+  resultUrl: http://127.0.0.1:8085
+
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30082
+
+result:
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30083

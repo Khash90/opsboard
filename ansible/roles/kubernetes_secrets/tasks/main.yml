@@ -1,0 +1,38 @@
+---
+# -----------------------------------------------------------------------------
+# OpsBoard Kubernetes secrets
+#
+# Creates environment-specific Kubernetes secrets without storing credentials
+# in Git. Secret values are supplied at runtime.
+# -----------------------------------------------------------------------------
+
+- name: Ensure target namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ opsboard_namespace }}"
+
+- name: Validate PostgreSQL password was supplied
+  ansible.builtin.assert:
+    that:
+      - opsboard_postgres_password is defined
+      - opsboard_postgres_password | length > 0
+    fail_msg: "A PostgreSQL password must be supplied at runtime."
+  no_log: true
+
+- name: Create or update PostgreSQL secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres-secret
+        namespace: "{{ opsboard_namespace }}"
+      type: Opaque
+      stringData:
+        POSTGRES_PASSWORD: "{{ opsboard_postgres_password }}"
+  no_log: true
