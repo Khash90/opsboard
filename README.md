@@ -44,6 +44,7 @@
 - [x] Development environment validation
 - [x] Staging environment deployment
 - [x] Production environment deployment
+- [ ] Manual Staging / Production promotion workflow
 - [ ] Final security hardening
 - [ ] Automated backup and recovery
 
