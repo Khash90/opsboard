@@ -5,8 +5,8 @@
     "name": "advdwdl",
     "namespace": "default",
     "uid": "021ed80a-7671-43e4-ba01-8cdfcb446d0a",
-    "resourceVersion": "1788977266344000",
-    "generation": 69,
+    "resourceVersion": "1789459935690008",
+    "generation": 74,
     "creationTimestamp": "2026-08-29T16:00:36Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "4060320581496832"
@@ -15,7 +15,7 @@
       "grafana.app/createdBy": "user:cfwft9f3lgxs0a",
       "grafana.app/saved-from-ui": "Grafana v13.2.0 (f681b1359f)",
       "grafana.app/updatedBy": "user:cfwft9f3lgxs0a",
-      "grafana.app/updatedTimestamp": "2026-09-09T18:07:46Z"
+      "grafana.app/updatedTimestamp": "2026-09-15T08:12:15Z"
     }
   },
   "spec": {
@@ -349,7 +349,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "kube_persistentvolumeclaim_status_phase{\n  namespace=\"$namespace\",\n  persistentvolumeclaim=\"postgres-data-postgres-0\",\n  phase=\"Bound\"\n}",
+                        "expr": "max(\n  kube_persistentvolumeclaim_status_phase{\n    namespace=\"$namespace\",\n    persistentvolumeclaim=\"postgres-data-postgres-0\",\n    phase=\"Bound\"\n  }\n)",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -434,7 +434,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "kube_persistentvolumeclaim_resource_requests_storage_bytes{\n  namespace=\"$namespace\",\n  persistentvolumeclaim=\"postgres-data-postgres-0\"\n}",
+                        "expr": "max(\n  kube_persistentvolumeclaim_resource_requests_storage_bytes{\n    namespace=\"$namespace\",\n    persistentvolumeclaim=\"postgres-data-postgres-0\"\n  }\n)",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -2320,7 +2320,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(\n  kube_node_status_condition{condition=\"Ready\",status=\"true\"}\n  * on(node) group_left(role)\n  kube_node_role{role=\"control-plane\"}\n)",
+                        "expr": "sum(\n  max by (node) (\n    kube_node_status_condition{\n      condition=\"Ready\",\n      status=\"true\"\n    }\n  )\n  * on(node)\n  max by (node) (\n    kube_node_role{\n      role=\"control-plane\"\n    }\n  )\n)",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -2405,7 +2405,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(\n  kube_node_status_condition{condition=\"Ready\",status=\"true\"}\n  * on(node) group_left(role)\n  kube_node_role{role=\"worker\"}\n)",
+                        "expr": "sum(\n  max by (node) (\n    kube_node_status_condition{\n      condition=\"Ready\",\n      status=\"true\"\n    }\n  )\n  * on(node)\n  max by (node) (\n    kube_node_role{\n      role=\"worker\"\n    }\n  )\n)",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -3158,14 +3158,14 @@
             },
             "spec": {
               "qryType": 1,
-              "query": "label_values(opsboard_votes_submitted_total,namespace)",
+              "query": "label_values(kube_namespace_status_phase{phase=\"Active\"},namespace)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             }
           },
-          "regex": "",
+          "regex": "/^opsboard(?:$|-.*)$/",
           "regexApplyTo": "value",
           "sort": "disabled",
-          "definition": "label_values(opsboard_votes_submitted_total,namespace)",
+          "definition": "label_values(kube_namespace_status_phase{phase=\"Active\"},namespace)",
           "options": [],
           "multi": false,
           "includeAll": false,

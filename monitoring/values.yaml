@@ -19,6 +19,16 @@ grafana:
     repository: grafana/grafana
     tag: "13.2.0-ubuntu"
 
+  # Grafana 13.2 can attempt to auto-update bundled datasource plugins
+  # during startup. In this lab, external plugin downloads may be blocked,
+  # which previously caused Prometheus and Loki datasource plugins to become
+  # unavailable after a VM reboot.
+  #
+  # Keep the bundled plugin versions shipped with the Grafana image instead.
+  grafana.ini:
+    plugins:
+      preinstall_auto_update: false
+
   # Keep the service internal to Kubernetes.
   # Host-browser access is provided through the systemd-managed
   # kubectl port-forward on VM1 and VirtualBox NAT forwarding.
@@ -191,54 +201,28 @@ alertmanager:
             html: |
               <h2>OpsBoard Alert</h2>
 
-              <p>
-                <strong>Status:</strong> {{ .Status }}<br>
-                <strong>Alert:</strong> {{ .CommonLabels.alertname }}<br>
-                <strong>Severity:</strong> {{ .CommonLabels.severity }}<br>
-                <strong>Namespace:</strong> {{ .CommonLabels.namespace }}
-              </p>
+              <p><strong>Status:</strong> {{ .Status }}</p>
+              <p><strong>Alert:</strong> {{ .CommonLabels.alertname }}</p>
+              <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+              <p><strong>Namespace:</strong> {{ .CommonLabels.namespace }}</p>
 
               {{ range .Alerts }}
+
               <hr>
 
-              <p>
-                <strong>Summary:</strong>
-                {{ .Annotations.summary }}
-              </p>
+              <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
 
-              <p>
-                <strong>Description:</strong>
-                {{ .Annotations.description }}
-              </p>
+              <p><strong>Description:</strong> {{ .Annotations.description }}</p>
 
-              <p>
-                <strong>Application:</strong>
-                {{ .Labels.app }}
-                <br>
+              <p><strong>Application:</strong> {{ .Labels.app }}</p>
+              <p><strong>Pod:</strong> {{ .Labels.pod }}</p>
+              <p><strong>Container:</strong> {{ .Labels.container }}</p>
+              <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
 
-                <strong>Pod:</strong>
-                {{ .Labels.pod }}
-                <br>
-
-                <strong>Container:</strong>
-                {{ .Labels.container }}
-                <br>
-
-                <strong>Instance:</strong>
-                {{ .Labels.instance }}
-              </p>
-
-              <p>
-                <strong>Started:</strong>
-                {{ .StartsAt }}
-              </p>
+              <p><strong>Started:</strong> {{ .StartsAt }}</p>
 
               {{ if .GeneratorURL }}
-              <p>
-                <a href="{{ .GeneratorURL }}">
-                  Open alert source
-                </a>
-              </p>
+              <p><a href="{{ .GeneratorURL }}">Open alert source</a></p>
               {{ end }}
 
               {{ end }}
