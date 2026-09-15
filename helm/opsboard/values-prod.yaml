@@ -5,9 +5,19 @@
 # Production reuses the common values from values.yaml and
 # changes only settings that must differ inside the shared lab
 # cluster.
+#
+# Application image tags are defined here so Production can be
+# promoted independently through the GitLab CI/CD workflow.
 # ============================================================
 
+worker:
+  image:
+    tag: "66069852"
+
 vote:
+  image:
+    tag: "metrics-v3"
+
   resultUrl: http://127.0.0.1:8087
 
   service:
@@ -16,6 +26,9 @@ vote:
     nodePort: 30084
 
 result:
+  image:
+    tag: "66069852"
+
   service:
     type: NodePort
     port: 8080

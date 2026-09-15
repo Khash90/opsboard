@@ -1,15 +1,61 @@
+# ============================================================
+# OpsBoard GitLab CI/CD Pipeline
+# ============================================================
+#
+# CI responsibilities:
+#   - Validate the runner/environment
+#   - Build and publish immutable application images
+#   - Promote immutable images through Dev -> Staging -> Prod
+#   - Perform read-only smoke tests
+#
+# CD responsibility:
+#   - Argo CD remains the only Kubernetes deployment authority
+#
+# Promotion model:
+#   - Images are built once using CI_COMMIT_SHORT_SHA
+#   - GitLab promotion jobs update Helm values in Git
+#   - The same Git commit is pushed to local GitLab and GitHub
+#   - Argo CD detects GitHub changes and reconciles Kubernetes
+#
+# Pipeline-noise control:
+#   - App / Helm / Argo / CI changes create pipelines
+#   - Documentation and unrelated configuration changes do not
+#   - Manual "Run pipeline" remains available for demos
+# ============================================================
+
+workflow:
+  rules:
+    # Always allow a manually started pipeline.
+    # Useful for controlled releases and interview demonstrations.
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+    # Automatically create pipelines only for meaningful delivery changes.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      changes:
+        - app/**/*
+        - helm/**/*
+        - argocd/**/*
+        - .gitlab-ci.yml
+
+    # Everything else, including docs-only pushes, is ignored.
+    - when: never
+
+
 stages:
   - validate
   - build
   - publish
-  - smoke
+  - promote_dev
+  - smoke_dev
+  - promote_staging
+  - smoke_staging
+  - promote_prod
+  - smoke_prod
 
 
-# ---------------------------------------------------------
+# ============================================================
 # Validate
-# ---------------------------------------------------------
-# Basic runner/environment validation.
-# This remains part of the normal CI pipeline.
+# ============================================================
 
 validate_pipeline:
   stage: validate
@@ -18,14 +64,13 @@ validate_pipeline:
     - 'echo "Runner host: $(hostname)"'
     - 'echo "Runner user: $(whoami)"'
     - 'docker version'
+    - 'git --version'
     - 'echo "Validation completed successfully"'
 
 
-# ---------------------------------------------------------
+# ============================================================
 # Registry Authentication Check
-# ---------------------------------------------------------
-# Manual diagnostic job.
-# Verifies GitLab Container Registry credentials only.
+# ============================================================
 
 registry_auth_check:
   stage: validate
@@ -41,16 +86,13 @@ registry_auth_check:
     - 'echo "Registry authentication verified successfully"'
 
 
-# ---------------------------------------------------------
+# ============================================================
 # Kubernetes Authentication Check
-# ---------------------------------------------------------
-# Manual diagnostic job.
+# ============================================================
 #
-# Kubernetes credentials are temporarily retained because the
-# smoke-test job still performs read-only rollout checks.
-#
-# Argo CD now owns deployment/reconciliation of OpsBoard.
-# GitLab CI must not directly deploy or roll back the release.
+# Kubernetes access is retained only for read-only validation.
+# GitLab CI does not deploy application workloads directly.
+# ============================================================
 
 kubernetes_auth_check:
   stage: validate
@@ -64,11 +106,13 @@ kubernetes_auth_check:
     - 'echo "Kubernetes authentication verified successfully"'
 
 
-# ---------------------------------------------------------
-# Build Vote
-# ---------------------------------------------------------
-# Safe demo build.
-# Builds locally on the self-hosted runner but does not publish.
+# ============================================================
+# Demo Builds
+# ============================================================
+#
+# These remain available as manual CI demonstrations.
+# They build locally but do not publish anything.
+# ============================================================
 
 build_vote:
   stage: build
@@ -81,12 +125,6 @@ build_vote:
     - 'echo "Vote image built successfully"'
 
 
-# ---------------------------------------------------------
-# Build Result
-# ---------------------------------------------------------
-# Safe demo build.
-# Builds locally on the self-hosted runner but does not publish.
-
 build_result:
   stage: build
   when: manual
@@ -97,12 +135,6 @@ build_result:
     - 'docker image inspect opsboard-result:ci-demo >/dev/null'
     - 'echo "Result image built successfully"'
 
-
-# ---------------------------------------------------------
-# Build Worker
-# ---------------------------------------------------------
-# Safe demo build.
-# Builds locally on the self-hosted runner but does not publish.
 
 build_worker:
   stage: build
@@ -115,14 +147,13 @@ build_worker:
     - 'echo "Worker image built successfully"'
 
 
-# ---------------------------------------------------------
-# Publish Vote
-# ---------------------------------------------------------
-# Builds and pushes an immutable image tag based on the
-# Git commit SHA.
+# ============================================================
+# Publish Immutable Images
+# ============================================================
 #
-# Publishing is CI responsibility.
-# Deployment is Argo CD responsibility.
+# Each image is tagged with the Git commit SHA.
+# These immutable tags are reused across every environment.
+# ============================================================
 
 publish_vote:
   stage: publish
@@ -130,9 +161,6 @@ publish_vote:
   allow_failure: true
   script:
     - 'echo "Publishing OpsBoard vote image"'
-    - 'test -n "$CI_REGISTRY"'
-    - 'test -n "$CI_REGISTRY_USER"'
-    - 'test -n "$CI_REGISTRY_PASSWORD"'
     - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
     - 'docker build -t "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA" app/vote'
     - 'docker push "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
@@ -140,19 +168,12 @@ publish_vote:
     - 'echo "Published vote image: $CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
 
 
-# ---------------------------------------------------------
-# Publish Result
-# ---------------------------------------------------------
-
 publish_result:
   stage: publish
   when: manual
   allow_failure: true
   script:
     - 'echo "Publishing OpsBoard result image"'
-    - 'test -n "$CI_REGISTRY"'
-    - 'test -n "$CI_REGISTRY_USER"'
-    - 'test -n "$CI_REGISTRY_PASSWORD"'
     - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
     - 'docker build -t "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA" app/result'
     - 'docker push "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
@@ -160,19 +181,12 @@ publish_result:
     - 'echo "Published result image: $CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
 
 
-# ---------------------------------------------------------
-# Publish Worker
-# ---------------------------------------------------------
-
 publish_worker:
   stage: publish
   when: manual
   allow_failure: true
   script:
     - 'echo "Publishing OpsBoard worker image"'
-    - 'test -n "$CI_REGISTRY"'
-    - 'test -n "$CI_REGISTRY_USER"'
-    - 'test -n "$CI_REGISTRY_PASSWORD"'
     - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
     - 'docker build -t "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA" app/worker'
     - 'docker push "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
@@ -180,25 +194,338 @@ publish_worker:
     - 'echo "Published worker image: $CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
 
 
-# ---------------------------------------------------------
-# Smoke Test Development
-# ---------------------------------------------------------
-# Read-only verification against the live Kubernetes cluster.
+# ============================================================
+# Promotion Helper
+# ============================================================
 #
-# This job does not deploy, patch, roll back, or mutate workloads.
-# Argo CD is the single deployment/reconciliation authority.
+# Promotion jobs use this script to:
+#   1. Verify that all immutable images exist.
+#   2. Update only the requested Helm values file.
+#   3. Commit the desired state to Git.
+#   4. Push to local GitLab using CI_JOB_TOKEN.
+#   5. Push the same commit to GitHub for Argo CD.
+# ============================================================
 
-smoke_test_dev:
-  stage: smoke
+.promotion_template:
   when: manual
   allow_failure: true
+
+  before_script:
+    - 'echo "Preparing GitOps promotion for $CI_COMMIT_SHORT_SHA"'
+
+    # Authenticate with the local container registry.
+    - 'echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin'
+
+    # Verify all three immutable images exist before promotion.
+    - 'docker pull "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHORT_SHA"'
+    - 'docker pull "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHORT_SHA"'
+    - 'docker pull "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHORT_SHA"'
+    - 'docker logout "$CI_REGISTRY"'
+
+    # Prepare Git identity.
+    - 'git config user.name "OpsBoard GitLab CI"'
+    - 'git config user.email "opsboard-ci@local"'
+    - 'git fetch origin main'
+    - 'git checkout -B main origin/main'
+
+    # Prepare the dedicated GitHub deploy key.
+    - 'mkdir -p "$HOME/.ssh"'
+    - 'echo "$GITHUB_DEPLOY_KEY_B64" | base64 -d > "$HOME/.ssh/opsboard_ci_github"'
+    - 'chmod 600 "$HOME/.ssh/opsboard_ci_github"'
+    - 'ssh-keyscan -H github.com >> "$HOME/.ssh/known_hosts"'
+
+  after_script:
+    - 'rm -f "$HOME/.ssh/opsboard_ci_github"'
+
+
+# ============================================================
+# Promote Development
+# ============================================================
+#
+# Dev uses values.yaml directly.
+# Updating the base values moves Dev to the new immutable SHA.
+# Staging and Prod remain unchanged because they override tags.
+# ============================================================
+
+promote_dev:
+  extends: .promotion_template
+  stage: promote_dev
+
   environment:
     name: dev
+
   script:
-    - 'echo "Running OpsBoard dev smoke tests"'
+    - |
+      update_image_tag() {
+        component="$1"
+        file="$2"
+
+        awk -v section="$component" \
+            -v tag="$CI_COMMIT_SHORT_SHA" '
+          $0 ~ "^" section ":" {
+            in_section = 1
+          }
+
+          in_section && /^  image:/ {
+            in_image = 1
+          }
+
+          in_section && in_image && /^    tag:/ {
+            print "    tag: \"" tag "\""
+            in_image = 0
+            next
+          }
+
+          in_section &&
+          /^[^ ]/ &&
+          $0 !~ "^" section ":" {
+            in_section = 0
+            in_image = 0
+          }
+
+          {
+            print
+          }
+        ' "$file" > "$file.tmp"
+
+        mv "$file.tmp" "$file"
+      }
+
+      update_image_tag worker helm/opsboard/values.yaml
+      update_image_tag vote helm/opsboard/values.yaml
+      update_image_tag result helm/opsboard/values.yaml
+
+    - 'git diff -- helm/opsboard/values.yaml'
+    - 'git add helm/opsboard/values.yaml'
+
+    - |
+      if git diff --cached --quiet; then
+        echo "Development already uses image tag $CI_COMMIT_SHORT_SHA"
+        exit 0
+      fi
+
+    - 'git commit -m "Promote $CI_COMMIT_SHORT_SHA to development [skip ci]"'
+
+    # Push desired state to local GitLab.
+    - 'git push "$CI_REPOSITORY_URL" HEAD:main'
+
+    # Push the same Git commit to GitHub where Argo CD watches main.
+    - 'GIT_SSH_COMMAND="ssh -i $HOME/.ssh/opsboard_ci_github -o IdentitiesOnly=yes" git push git@github.com:Khash90/opsboard.git HEAD:main'
+
+    - 'echo "Development promotion committed successfully"'
+
+
+# ============================================================
+# Smoke Test Development
+# ============================================================
+
+smoke_test_dev:
+  stage: smoke_dev
+  when: manual
+  allow_failure: true
+
+  environment:
+    name: dev
+
+  script:
+    - 'echo "Running OpsBoard development smoke tests"'
     - 'test -f "$KUBE_CONFIG"'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/vote -n opsboard --timeout=60s'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/result -n opsboard --timeout=60s'
-    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard --timeout=60s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/vote -n opsboard --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/result -n opsboard --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard --timeout=120s'
     - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard'
-    - 'echo "OpsBoard dev smoke tests passed"'
+    - 'echo "Development smoke tests passed"'
+
+
+# ============================================================
+# Promote Staging
+# ============================================================
+
+promote_staging:
+  extends: .promotion_template
+  stage: promote_staging
+
+  environment:
+    name: staging
+
+  script:
+    - |
+      update_image_tag() {
+        component="$1"
+        file="$2"
+
+        awk -v section="$component" \
+            -v tag="$CI_COMMIT_SHORT_SHA" '
+          $0 ~ "^" section ":" {
+            in_section = 1
+          }
+
+          in_section && /^  image:/ {
+            in_image = 1
+          }
+
+          in_section && in_image && /^    tag:/ {
+            print "    tag: \"" tag "\""
+            in_image = 0
+            next
+          }
+
+          in_section &&
+          /^[^ ]/ &&
+          $0 !~ "^" section ":" {
+            in_section = 0
+            in_image = 0
+          }
+
+          {
+            print
+          }
+        ' "$file" > "$file.tmp"
+
+        mv "$file.tmp" "$file"
+      }
+
+      update_image_tag worker helm/opsboard/values-staging.yaml
+      update_image_tag vote helm/opsboard/values-staging.yaml
+      update_image_tag result helm/opsboard/values-staging.yaml
+
+    - 'git diff -- helm/opsboard/values-staging.yaml'
+    - 'git add helm/opsboard/values-staging.yaml'
+
+    - |
+      if git diff --cached --quiet; then
+        echo "Staging already uses image tag $CI_COMMIT_SHORT_SHA"
+        exit 0
+      fi
+
+    - 'git commit -m "Promote $CI_COMMIT_SHORT_SHA to staging [skip ci]"'
+    - 'git push "$CI_REPOSITORY_URL" HEAD:main'
+    - 'GIT_SSH_COMMAND="ssh -i $HOME/.ssh/opsboard_ci_github -o IdentitiesOnly=yes" git push git@github.com:Khash90/opsboard.git HEAD:main'
+    - 'echo "Staging promotion committed successfully"'
+
+
+# ============================================================
+# Smoke Test Staging
+# ============================================================
+
+smoke_test_staging:
+  stage: smoke_staging
+  when: manual
+  allow_failure: true
+
+  environment:
+    name: staging
+
+  script:
+    - 'echo "Running OpsBoard staging smoke tests"'
+    - 'test -f "$KUBE_CONFIG"'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/vote -n opsboard-staging --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/result -n opsboard-staging --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard-staging --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard-staging'
+    - 'echo "Staging smoke tests passed"'
+
+
+# ============================================================
+# Promote Production
+# ============================================================
+#
+# Production promotion is allowed only after Staging's desired
+# state already references the same immutable commit SHA.
+# ============================================================
+
+promote_prod:
+  extends: .promotion_template
+  stage: promote_prod
+
+  environment:
+    name: production
+
+  script:
+    - |
+      staging_tag_count="$(
+        grep -c "tag: \"$CI_COMMIT_SHORT_SHA\"" \
+          helm/opsboard/values-staging.yaml || true
+      )"
+
+      if [ "$staging_tag_count" -ne 3 ]; then
+        echo "ERROR: $CI_COMMIT_SHORT_SHA has not been promoted to Staging."
+        echo "Promote and validate Staging before Production."
+        exit 1
+      fi
+
+    - |
+      update_image_tag() {
+        component="$1"
+        file="$2"
+
+        awk -v section="$component" \
+            -v tag="$CI_COMMIT_SHORT_SHA" '
+          $0 ~ "^" section ":" {
+            in_section = 1
+          }
+
+          in_section && /^  image:/ {
+            in_image = 1
+          }
+
+          in_section && in_image && /^    tag:/ {
+            print "    tag: \"" tag "\""
+            in_image = 0
+            next
+          }
+
+          in_section &&
+          /^[^ ]/ &&
+          $0 !~ "^" section ":" {
+            in_section = 0
+            in_image = 0
+          }
+
+          {
+            print
+          }
+        ' "$file" > "$file.tmp"
+
+        mv "$file.tmp" "$file"
+      }
+
+      update_image_tag worker helm/opsboard/values-prod.yaml
+      update_image_tag vote helm/opsboard/values-prod.yaml
+      update_image_tag result helm/opsboard/values-prod.yaml
+
+    - 'git diff -- helm/opsboard/values-prod.yaml'
+    - 'git add helm/opsboard/values-prod.yaml'
+
+    - |
+      if git diff --cached --quiet; then
+        echo "Production already uses image tag $CI_COMMIT_SHORT_SHA"
+        exit 0
+      fi
+
+    - 'git commit -m "Promote $CI_COMMIT_SHORT_SHA to production [skip ci]"'
+    - 'git push "$CI_REPOSITORY_URL" HEAD:main'
+    - 'GIT_SSH_COMMAND="ssh -i $HOME/.ssh/opsboard_ci_github -o IdentitiesOnly=yes" git push git@github.com:Khash90/opsboard.git HEAD:main'
+    - 'echo "Production promotion committed successfully"'
+
+
+# ============================================================
+# Smoke Test Production
+# ============================================================
+
+smoke_test_prod:
+  stage: smoke_prod
+  when: manual
+  allow_failure: true
+
+  environment:
+    name: production
+
+  script:
+    - 'echo "Running OpsBoard production smoke tests"'
+    - 'test -f "$KUBE_CONFIG"'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/vote -n opsboard-prod --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/result -n opsboard-prod --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl rollout status deployment/worker -n opsboard-prod --timeout=120s'
+    - 'KUBECONFIG="$KUBE_CONFIG" kubectl get pods -n opsboard-prod'
+    - 'echo "Production smoke tests passed"'
