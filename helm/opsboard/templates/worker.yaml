@@ -60,6 +60,5 @@ spec:
             {{- toYaml .Values.worker.resources | nindent 12 }}
 
           securityContext:
-            runAsNonRoot: true
             allowPrivilegeEscalation: false
 {{- end }}
