@@ -12,11 +12,11 @@
 
 worker:
   image:
-    tag: "66069852"
+    tag: "c770f284"
 
 vote:
   image:
-    tag: "metrics-v3"
+    tag: "c770f284"
 
   resultUrl: http://127.0.0.1:8087
 
@@ -27,7 +27,7 @@ vote:
 
 result:
   image:
-    tag: "66069852"
+    tag: "c770f284"
 
   service:
     type: NodePort
