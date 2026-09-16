@@ -1,0 +1,21 @@
+---
+# OpsBoard PostgreSQL backup defaults
+
+opsboard_backup_user: khash1
+
+opsboard_backup_root: /var/backups/opsboard-postgres
+
+opsboard_backup_namespaces:
+  - opsboard
+  - opsboard-staging
+  - opsboard-prod
+
+opsboard_backup_postgres_pod: postgres-0
+opsboard_backup_database: postgres
+opsboard_backup_database_user: postgres
+
+# Keep backups for seven days.
+opsboard_backup_retention_minutes: 10080
+
+# Daily at 02:00 VM local time.
+opsboard_backup_calendar: "*-*-* 02:00:00"

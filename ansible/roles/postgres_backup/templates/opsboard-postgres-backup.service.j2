@@ -1,0 +1,15 @@
+[Unit]
+Description=OpsBoard PostgreSQL backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ opsboard_backup_user }}
+Group={{ opsboard_backup_user }}
+ExecStart=/usr/local/bin/opsboard-postgres-backup
+
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

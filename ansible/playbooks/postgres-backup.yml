@@ -1,0 +1,16 @@
+---
+# -----------------------------------------------------------------------------
+# OpsBoard PostgreSQL backup automation
+#
+# Installs a daily systemd-managed PostgreSQL backup workflow on VM1.
+# Backups are streamed from PostgreSQL pods running on VM2 and stored
+# separately on the control-plane VM with seven-day retention.
+# -----------------------------------------------------------------------------
+
+- name: Configure OpsBoard PostgreSQL backup automation
+  hosts: control_plane
+  become: true
+  gather_facts: true
+
+  roles:
+    - postgres_backup

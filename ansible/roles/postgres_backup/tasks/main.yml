@@ -1,0 +1,70 @@
+---
+- name: Verify kubectl is installed
+  ansible.builtin.command:
+    cmd: kubectl version --client
+  changed_when: false
+
+- name: Verify Kubernetes configuration exists
+  ansible.builtin.stat:
+    path: "/home/{{ opsboard_backup_user }}/.kube/config"
+  register: opsboard_kubeconfig
+
+- name: Fail if Kubernetes configuration is missing
+  ansible.builtin.assert:
+    that:
+      - opsboard_kubeconfig.stat.exists
+    fail_msg: >-
+      Kubernetes configuration was not found at
+      /home/{{ opsboard_backup_user }}/.kube/config.
+
+- name: Create PostgreSQL backup root directory
+  ansible.builtin.file:
+    path: "{{ opsboard_backup_root }}"
+    state: directory
+    owner: "{{ opsboard_backup_user }}"
+    group: "{{ opsboard_backup_user }}"
+    mode: "0750"
+
+- name: Create PostgreSQL environment backup directories
+  ansible.builtin.file:
+    path: "{{ opsboard_backup_root }}/{{ item }}"
+    state: directory
+    owner: "{{ opsboard_backup_user }}"
+    group: "{{ opsboard_backup_user }}"
+    mode: "0750"
+  loop: "{{ opsboard_backup_namespaces }}"
+
+- name: Install OpsBoard PostgreSQL backup script
+  ansible.builtin.template:
+    src: opsboard-postgres-backup.sh.j2
+    dest: /usr/local/bin/opsboard-postgres-backup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install OpsBoard PostgreSQL backup service
+  ansible.builtin.template:
+    src: opsboard-postgres-backup.service.j2
+    dest: /etc/systemd/system/opsboard-postgres-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install OpsBoard PostgreSQL backup timer
+  ansible.builtin.template:
+    src: opsboard-postgres-backup.timer.j2
+    dest: /etc/systemd/system/opsboard-postgres-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Flush systemd handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start PostgreSQL backup timer
+  ansible.builtin.systemd:
+    name: opsboard-postgres-backup.timer
+    enabled: true
+    state: started

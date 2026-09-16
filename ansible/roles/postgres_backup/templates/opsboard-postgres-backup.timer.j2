@@ -1,0 +1,11 @@
+[Unit]
+Description=Run OpsBoard PostgreSQL backup daily
+
+[Timer]
+OnCalendar={{ opsboard_backup_calendar }}
+Persistent=true
+RandomizedDelaySec=300
+Unit=opsboard-postgres-backup.service
+
+[Install]
+WantedBy=timers.target

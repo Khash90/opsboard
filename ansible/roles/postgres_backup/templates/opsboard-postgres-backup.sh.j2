@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+BACKUP_ROOT="{{ opsboard_backup_root }}"
+POSTGRES_POD="{{ opsboard_backup_postgres_pod }}"
+DATABASE="{{ opsboard_backup_database }}"
+DATABASE_USER="{{ opsboard_backup_database_user }}"
+RETENTION_MINUTES="{{ opsboard_backup_retention_minutes }}"
+
+NAMESPACES=(
+{% for namespace in opsboard_backup_namespaces %}
+  "{{ namespace }}"
+{% endfor %}
+)
+
+timestamp="$(date '+%Y-%m-%d-%H%M%S')"
+
+echo "Starting OpsBoard PostgreSQL backup at $(date --iso-8601=seconds)"
+
+for namespace in "${NAMESPACES[@]}"; do
+    backup_dir="${BACKUP_ROOT}/${namespace}"
+    backup_file="${backup_dir}/${namespace}-${timestamp}.dump"
+    temp_file="${backup_file}.tmp"
+
+    mkdir -p "${backup_dir}"
+
+    echo "Waiting for ${namespace}/${POSTGRES_POD} to become ready..."
+
+    kubectl \
+      --kubeconfig /home/{{ opsboard_backup_user }}/.kube/config \
+      -n "${namespace}" \
+      wait \
+      --for=condition=Ready \
+      "pod/${POSTGRES_POD}" \
+      --timeout=120s
+
+    echo "Backing up ${namespace}..."
+
+    if kubectl \
+      --kubeconfig /home/{{ opsboard_backup_user }}/.kube/config \
+      -n "${namespace}" \
+      exec "${POSTGRES_POD}" -- \
+      pg_dump \
+        -U "${DATABASE_USER}" \
+        -d "${DATABASE}" \
+        -Fc \
+      > "${temp_file}"
+    then
+        if [[ ! -s "${temp_file}" ]]; then
+            echo "ERROR: Backup for ${namespace} is empty."
+            rm -f "${temp_file}"
+            exit 1
+        fi
+
+        mv "${temp_file}" "${backup_file}"
+
+        sha256sum "${backup_file}" > "${backup_file}.sha256"
+
+        echo "Created ${backup_file}"
+    else
+        echo "ERROR: Backup failed for ${namespace}."
+        rm -f "${temp_file}"
+        exit 1
+    fi
+
+    echo "Removing backups older than seven days from ${namespace}..."
+
+    find "${backup_dir}" \
+      -type f \
+      \( -name '*.dump' -o -name '*.dump.sha256' \) \
+      -mmin +"${RETENTION_MINUTES}" \
+      -delete
+done
+
+echo "OpsBoard PostgreSQL backup completed successfully at $(date --iso-8601=seconds)"

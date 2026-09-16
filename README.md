@@ -45,8 +45,8 @@
 - [x] Staging environment deployment
 - [x] Production environment deployment
 - [x] Manual Staging / Production promotion workflow
-- [ ] Final security hardening
-- [ ] Automated backup and recovery
+- [x] Final security hardening
+- [x] Automated backup and recovery
 
 ---
 
