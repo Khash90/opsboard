@@ -2,8 +2,8 @@
 
 <p align="center">
   <strong>
-    A production-style DevOps platform demonstrating Kubernetes, CI/CD,
-    GitOps, automation, observability, security, and infrastructure engineering.
+    Production-style DevOps platform demonstrating Kubernetes, CI/CD,
+    GitOps, automation, observability, security, and backup/recovery.
   </strong>
 </p>
 
@@ -14,9 +14,27 @@
 
 ---
 
-## Current Progress
+## Overview
 
-> **Status: Work in progress**
+OpsBoard is an end-to-end DevOps portfolio project built on a two-node Ubuntu lab.
+
+It demonstrates how an application can be:
+
+- containerized and deployed to Kubernetes
+- packaged with Helm
+- built and published through GitLab CI/CD
+- promoted across Development, Staging, and Production
+- reconciled through Argo CD GitOps
+- monitored with Prometheus and Grafana
+- logged through Loki and Grafana Alloy
+- secured with Kubernetes RBAC and container security controls
+- protected with automated PostgreSQL backup and tested recovery
+
+The environment is intentionally small enough to run locally while still demonstrating production-style DevOps patterns.
+
+---
+
+## Completed Project Milestones
 
 - [x] Git repository and project structure
 - [x] Linux host preparation
@@ -46,33 +64,7 @@
 - [x] Production environment deployment
 - [x] Manual Staging / Production promotion workflow
 - [x] Final security hardening
-- [x] Automated backup and recovery
-
----
-
-## Overview
-
-OpsBoard is an end-to-end DevOps portfolio project built to demonstrate how a
-modern application platform can be deployed, operated, monitored, secured, and
-reproduced through automation.
-
-The current environment runs on a two-node Ubuntu VirtualBox lab and includes:
-
-- a kubeadm-based Kubernetes cluster
-- Helm-managed application workloads
-- GitHub source control
-- self-managed GitLab CE for CI/CD and container images
-- a self-hosted GitLab Runner
-- Argo CD GitOps reconciliation
-- Prometheus metrics collection
-- Grafana dashboards
-- Loki centralized logging
-- Grafana Alloy log collection
-- persistent PostgreSQL application data
-
-The lab is intentionally being developed and validated locally before the same
-automation patterns are used to rebuild the platform on physical Ubuntu
-servers.
+- [x] Automated PostgreSQL backup and recovery
 
 ---
 
@@ -87,8 +79,7 @@ flowchart TD
     Runner --> Registry[GitLab Container Registry]
 
     GitHub --> ArgoCD[Argo CD]
-
-    Registry --> K8s[Kubernetes Cluster]
+    Registry --> K8s[Kubernetes]
     ArgoCD --> K8s
 
     K8s --> Vote[Vote]
@@ -111,145 +102,113 @@ flowchart TD
 
 | Node | Responsibilities |
 | --- | --- |
-| `ubuntuvm1` | Kubernetes control plane, Ansible control node, GitLab CE, GitLab Runner, local container registry |
-| `ubuntuvm2` | Kubernetes worker, application workloads, Argo CD, monitoring and logging workloads |
+| `ubuntuvm1` | Kubernetes control plane, Ansible control node, GitLab CE, GitLab Runner, container registry |
+| `ubuntuvm2` | Kubernetes worker, application workloads, Argo CD, monitoring, and logging |
 
-The development environment currently uses a **single two-node Kubernetes
-cluster** with platform components separated into namespaces.
+The same Kubernetes cluster hosts three isolated application environments:
 
-Major namespaces include:
-
-- `opsboard` — application workloads
-- `argocd` — GitOps platform
-- `monitoring` — Prometheus, Grafana, Alertmanager
-- `logging` — Loki and Grafana Alloy
-- `kube-system` — Kubernetes system components
-- `local-path-storage` — dynamic local storage provisioning
+| Environment | Namespace |
+| --- | --- |
+| Development | `opsboard` |
+| Staging | `opsboard-staging` |
+| Production | `opsboard-prod` |
 
 ---
 
-## Application Flow
+## Application
 
 ```text
 Vote
- │
- ▼
+  │
+  ▼
 Redis
- │
- ▼
+  │
+  ▼
 Worker
- │
- ▼
+  │
+  ▼
 PostgreSQL
- │
- ▼
+  │
+  ▼
 Result
 ```
 
-The application contains five core components:
+Core components:
 
 - `vote` — Python/Flask voting frontend
 - `redis` — vote queue
-- `worker` — processes queued votes
+- `worker` — vote processing service
 - `postgres` — persistent system of record
 - `result` — Node.js results frontend
 
-Application images are stored in the local GitLab Container Registry and
-deployed through the OpsBoard Helm chart.
+Application images are stored in the local GitLab Container Registry and deployed using the OpsBoard Helm chart.
 
 ---
 
-## GitOps and Delivery
+## CI/CD and GitOps
 
-OpsBoard intentionally separates source control, CI/CD, image publishing, and
-deployment reconciliation.
+OpsBoard separates CI from deployment reconciliation.
 
 ```text
-Developer
-   │
-   ├──────────────► GitHub
-   │                   │
-   │                   ▼
-   │                Argo CD
-   │                   │
-   │                   ▼
-   │              Kubernetes
-   │
-   └──────────────► Local GitLab CE
-                       │
-                       ▼
-                Self-hosted Runner
-                       │
-                       ▼
-                 Image Registry
-                       │
-                       ▼
-                   Kubernetes
+Application change
+      │
+      ▼
+GitLab CI/CD
+      │
+      ├── Build immutable images
+      │
+      ├── Publish commit-SHA images
+      │
+      ▼
+Promote Development
+      │
+      ▼
+Smoke Test
+      │
+      ▼
+Promote Staging
+      │
+      ▼
+Smoke Test
+      │
+      ▼
+Promote Production
+      │
+      ▼
+Smoke Test
 ```
 
-### GitHub
+Promotion jobs update environment-specific Helm values in Git.
 
-GitHub is the primary source-control repository and the Git source watched by
-Argo CD.
+Argo CD watches GitHub and remains the deployment authority for Kubernetes.
 
-### GitLab CE
+The same immutable image version is promoted from Development to Staging to Production instead of rebuilding per environment.
 
-The local self-managed GitLab instance provides:
+CI pipelines are filtered so documentation-only and unrelated changes do not create unnecessary pipelines.
 
-- GitLab CI/CD
-- self-hosted pipeline execution
-- container image storage
-- deploy-token-based registry authentication
-
-No paid GitLab-hosted/shared runners are required.
-
-### Argo CD
-
-Argo CD continuously compares the desired application state stored in GitHub
-with the running Kubernetes cluster.
-
-The OpsBoard Helm chart is the declarative deployment source of truth for the
-application.
+Manual pipeline execution remains available for controlled releases and demonstrations.
 
 ---
 
 ## Observability
 
-OpsBoard includes metrics, dashboards, durable business metrics, and
-centralized logging.
-
 ### Prometheus
 
-Prometheus collects Kubernetes, infrastructure, and application metrics using
-the Prometheus Operator and `ServiceMonitor` resources.
+Prometheus collects:
 
-The Vote service exposes custom application metrics in addition to standard
-platform metrics.
-
-### Durable Business Metrics
-
-Business totals are backed by PostgreSQL rather than relying only on
-process-local Prometheus counters.
-
-Persistent business metrics currently include:
-
-- total votes
-- votes by choice
-- voting-page views
-
-This means executive Grafana totals survive application pod and VM restarts.
-
-Process-local counters are still retained where useful for operational rate
-and trend analysis.
+- Kubernetes health
+- node metrics
+- pod metrics
+- application metrics
+- persistent business metrics
 
 ### Grafana
 
-The custom **OpsBoard Executive Overview** dashboard currently includes:
+The OpsBoard Executive Overview dashboard includes:
 
-- control-plane readiness
-- worker readiness
+- control-plane and worker health
 - cluster node readiness
-- OpsBoard pod readiness
+- pod readiness
 - unhealthy pod count
 - pod restart monitoring
 - PostgreSQL PVC health
@@ -262,13 +221,17 @@ The custom **OpsBoard Executive Overview** dashboard currently includes:
 - votes by choice
 - cumulative vote trends
 - page-view trends
-- OpsBoard log volume
-- errors and warnings status
-- recent OpsBoard logs
+- application log volume
+- errors and warnings
+- recent application logs
 
-### Loki and Grafana Alloy
+The dashboard supports switching between:
 
-Centralized logging uses:
+- Development
+- Staging
+- Production
+
+### Centralized Logging
 
 ```text
 Kubernetes Pods
@@ -283,10 +246,9 @@ Loki
 Grafana
 ```
 
-Grafana Alloy discovers Kubernetes workloads and forwards their container logs
-to Loki.
+Grafana Alloy discovers Kubernetes workloads and forwards container logs to Loki.
 
-Logs can be queried using Kubernetes labels such as:
+Logs can be queried using Kubernetes metadata such as:
 
 - `namespace`
 - `app`
@@ -294,8 +256,55 @@ Logs can be queried using Kubernetes labels such as:
 - `container`
 - `cluster`
 
-Grafana Explore provides interactive LogQL investigation while selected Loki
-queries are also surfaced directly in the OpsBoard dashboard.
+### Alerting
+
+Prometheus Alertmanager provides operational alerts and email notifications for selected infrastructure and application conditions.
+
+---
+
+## Security
+
+Security controls implemented in OpsBoard include:
+
+- SSH key-based administration
+- secrets excluded from Git
+- Kubernetes Secrets for runtime credentials
+- private container-registry authentication
+- masked CI/CD variables for sensitive credentials
+- dedicated GitHub deploy key for CI promotion
+- Kubernetes RBAC
+- read-only Kubernetes access for GitLab CI smoke tests
+- Argo CD as the application deployment authority
+- non-root application images
+- `allowPrivilegeEscalation: false` container security contexts
+- namespace-based environment isolation
+
+---
+
+## Backup and Recovery
+
+PostgreSQL backup automation is managed with Ansible and systemd.
+
+The backup workflow:
+
+- runs automatically every day
+- backs up Development, Staging, and Production PostgreSQL databases
+- stores backups on VM1 while PostgreSQL workloads run on VM2
+- creates SHA-256 integrity checksums
+- uses a rolling seven-day retention window
+- automatically removes expired backups
+
+Recovery was validated by restoring a Staging backup into a temporary PostgreSQL database.
+
+The recovery test verified:
+
+- backup checksum integrity
+- successful `pg_restore`
+- restored database schema
+- restored `votes` data
+- restored persistent business metrics
+
+The temporary recovery database was removed after validation.
 
 ---
 
@@ -308,7 +317,7 @@ queries are also surfaced directly in the OpsBoard dashboard.
 | Kubernetes runtime | containerd |
 | Orchestration | Kubernetes / kubeadm |
 | Configuration management | Ansible |
-| Infrastructure as Code | Terraform |
+| Infrastructure modeling | Terraform |
 | Package management | Helm |
 | Source control | GitHub |
 | CI/CD | GitLab CE / GitLab CI/CD |
@@ -331,185 +340,33 @@ queries are also surfaced directly in the OpsBoard dashboard.
 
 ```text
 opsboard/
-├── ansible/                  # Host and Kubernetes automation
-├── app/
-│   ├── vote/                 # Python voting service
-│   ├── result/               # Node.js result service
-│   └── worker/               # Vote processing worker
-├── argocd/                   # Argo CD configuration
-├── docs/                     # Detailed project documentation
+├── ansible/            # Host configuration and backup automation
+├── app/                # Vote, Result, and Worker source
+├── argocd/             # Argo CD applications
+├── docs/               # Detailed implementation documentation
 ├── helm/
-│   └── opsboard/             # OpsBoard Helm chart
-├── kubernetes/               # Kubernetes resources
-├── logging/
-│   ├── loki-values.yaml      # Loki Helm configuration
-│   └── alloy-values.yaml     # Alloy log collection configuration
-├── monitoring/               # Prometheus and Grafana configuration
-├── systemd/                  # Persistent local browser-access services
-├── terraform/                # Infrastructure-as-Code configuration
-├── .gitlab-ci.yml            # GitLab CI/CD pipeline
-├── ansible.cfg
+│   └── opsboard/       # OpsBoard Helm chart
+├── kubernetes/         # Kubernetes resources and RBAC
+├── logging/            # Loki and Grafana Alloy configuration
+├── monitoring/         # Prometheus and Grafana configuration
+├── systemd/            # Persistent local access services
+├── terraform/          # Infrastructure topology/environment modeling
+├── .gitlab-ci.yml      # CI/CD and promotion pipeline
 └── README.md
 ```
 
 ---
 
-## Automation Philosophy
-
-The project follows a simple principle:
-
-> Manual work is acceptable for learning and troubleshooting, but validated
-> configuration should ultimately become reproducible code.
-
-Automation currently or eventually covers:
-
-- Linux preparation
-- package installation
-- container runtime configuration
-- Kubernetes prerequisites
-- Kubernetes cluster creation
-- registry configuration
-- application deployment
-- CI/CD
-- GitOps
-- monitoring
-- logging
-- browser-access helper services
-- infrastructure provisioning
-- backup and recovery
-
-The goal is to recreate OpsBoard on clean Linux machines rather than permanently
-depending on the state of the current VirtualBox VMs.
-
----
-
-## Security Approach
-
-Security is incorporated throughout the project rather than treated only as a
-final step.
-
-Implemented or planned controls include:
-
-- SSH key-based administration
-- limited root usage
-- non-root application containers
-- Kubernetes security contexts
-- secrets excluded from Git
-- Kubernetes Secrets
-- least-privilege GitLab deploy tokens
-- protected CI/CD variables
-- dependency scanning
-- container image scanning
-- Kubernetes RBAC
-- namespace isolation
-- network policies
-- TLS
-- firewall configuration
-- backup and recovery controls
-
-Passwords, private keys, tokens, kubeconfigs, registry credentials, and other
-sensitive values must never be committed to the repository.
-
----
-
-## Environment Strategy
-
-The long-term platform design supports:
-
-| Environment | Purpose |
-| --- | --- |
-| `dev` | Development, experimentation, and integration |
-| `staging` | Production-like pre-release validation |
-| `prod` | Stable production deployment |
-
-The current VirtualBox environment represents the initial `dev` environment.
-
-Environment-specific configuration will be controlled through variables,
-values files, secrets, and policies rather than hard-coded production
-information.
-
----
-
-## Backup and Recovery
-
-Backup and recovery remains an upcoming project milestone.
-
-The final implementation will include:
-
-- automated PostgreSQL backups
-- scheduled backup execution
-- retention policies
-- off-node or external backup storage
-- tested PostgreSQL restoration
-- infrastructure configuration recovery
-- Kubernetes recovery considerations
-- documented disaster-recovery procedures
-
-A successful backup alone will not be considered sufficient; recovery will be
-validated through actual restore testing.
-
----
-
-## Next Milestones
-
-Current priorities are:
-
-1. Configure Alertmanager and notification routing
-2. Complete development-environment validation
-3. Implement Terraform infrastructure provisioning
-4. Automate PostgreSQL backup and recovery
-5. Continue security hardening
-6. Rebuild OpsBoard on physical Ubuntu servers
-7. Introduce staging and production environment patterns
-
----
-
-## Migration to Physical Servers
-
-The VirtualBox lab is a development and learning platform, not the final
-deployment target.
-
-After the lab is fully validated, OpsBoard will be rebuilt from scratch on two
-Ubuntu physical servers using repository automation rather than copying the
-existing virtual machines.
-
-The target reproduction process is:
-
-```text
-Terraform
-    +
-Ansible
-    +
-Kubernetes
-    +
-Helm
-    +
-GitLab CI/CD
-    +
-Argo CD
-```
-
-Development-only networking and access patterns will then be replaced with
-production-appropriate DNS, TLS, firewall rules, secrets management, and
-network architecture.
-
----
-
 ## Documentation
 
-This README intentionally provides a high-level, scan-friendly overview.
+This README is intentionally concise.
 
-Detailed implementation notes, architecture decisions, troubleshooting
-history, operational procedures, and day-by-day build documentation belong in
-the `docs/` directory.
-
-This keeps the GitHub landing page easy to review while preserving the deeper
-technical documentation needed for interviews, maintenance, and platform
-reproduction.
+Detailed implementation notes, architecture decisions, troubleshooting history, operational procedures, and day-by-day project documentation are maintained under `docs/`.
 
 ---
 
-## License
+## Future Deployment
 
-A project license will be finalized before OpsBoard is published as a completed
-portfolio project.
+The current two-VM VirtualBox environment is the validated lab implementation.
+
+The same repository automation can later be used to reproduce the platform on two physical Ubuntu servers with production-oriented networking, DNS, TLS, firewall rules, and infrastructure-specific configuration.
