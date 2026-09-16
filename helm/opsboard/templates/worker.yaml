@@ -11,6 +11,12 @@ metadata:
 spec:
   replicas: {{ .Values.worker.replicaCount }}
 
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+
   selector:
     matchLabels:
       app: worker
